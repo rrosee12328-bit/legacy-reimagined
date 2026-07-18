@@ -508,6 +508,7 @@ function Footer() {
           <a href="#why" className="hover:text-foreground">Why Us</a>
           <a href="#process" className="hover:text-foreground">Process</a>
           <button onClick={useQualify()} className="hover:text-foreground">Apply</button>
+          <a href="/admin" className="hover:text-foreground opacity-40 hover:opacity-100 transition text-xs">Admin</a>
         </div>
       </div>
     </footer>
