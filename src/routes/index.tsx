@@ -43,23 +43,26 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const BOOK_URL = "https://www.scaletolegacy.com/book-discovery-session";
 const EBOOK_URL = "https://www.scaletolegacy.com/the-key-to-scaling";
 
 function Home() {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      <Nav />
-      <Hero />
-      <Frustrations />
-      <Different />
-      <Process />
-      <LeadMagnet />
-      <Testimonials />
-      <Founder />
-      <FinalCta />
-      <Footer />
-    </div>
+    <QualifyCtx.Provider value={() => setOpen(true)}>
+      <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+        <Nav />
+        <Hero />
+        <Frustrations />
+        <Different />
+        <Process />
+        <LeadMagnet />
+        <Testimonials />
+        <Founder />
+        <FinalCta />
+        <Footer />
+        <QualifyDialog open={open} onClose={() => setOpen(false)} />
+      </div>
+    </QualifyCtx.Provider>
   );
 }
 
