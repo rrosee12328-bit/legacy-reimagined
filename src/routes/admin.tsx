@@ -32,7 +32,7 @@ interface Lead {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const ADMIN_PASS = "scale2legacy2025";
+const ADMIN_PASS = "102026";
 
 const STATUS_OPTIONS = [
   "New",
