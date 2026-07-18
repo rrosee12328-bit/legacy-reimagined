@@ -508,7 +508,21 @@ function Footer() {
           <a href="#why" className="hover:text-foreground">Why Us</a>
           <a href="#process" className="hover:text-foreground">Process</a>
           <button onClick={useQualify()} className="hover:text-foreground">Apply</button>
-          <a href="/admin" className="hover:text-foreground opacity-40 hover:opacity-100 transition text-xs">Admin</a>
+          <a
+            href="/admin"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent hover:text-foreground transition"
+          >
+            Admin CRM
+          </a>
+        </div>
+      </div>
+
+      {/* Meta-compliant financial disclaimer */}
+      <div className="mt-8 border-t border-border pt-8">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-muted-foreground">Financial Disclaimer:</strong> Scale to Legacy is not a lender, bank, or financial institution. We are a business funding consulting and strategy service that connects clients with third-party lending partners. All funding is subject to credit approval and individual qualification. Results vary based on personal credit profile, credit utilization, business history, and lender requirements. Past client results are not a guarantee of future outcomes. The funding amounts referenced on this site represent results achieved by individual clients and are not typical. Nothing on this website constitutes financial, legal, or investment advice. By submitting an application, you agree to be contacted regarding funding options. We do not charge for the initial consultation. A $2,000 engagement fee applies upon contract execution and is credited toward the total service fee. This site is intended for U.S. residents 18 years of age or older.
+          </p>
         </div>
       </div>
     </footer>
