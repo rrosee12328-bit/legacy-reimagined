@@ -17,23 +17,23 @@ export interface LeadInput {
   phone: string;
   business_name: string;
   business_type?: string;
-  time_in_business: "under_6_months" | "6_to_24_months" | "over_2_years";
-  monthly_revenue: "under_3k" | "3k_to_10k" | "over_10k";
-  credit_score: "under_650" | "650_to_699" | "700_plus";
-  funding_amount: string;
+  time_in_business?: "under_6_months" | "6_to_24_months" | "over_2_years";
+  monthly_revenue?: "under_3k" | "3k_to_10k" | "over_10k";
+  credit_score: string;
+  utilization?: string;
+  llc_status?: string;
+  investment_ready?: string;
+  funding_amount?: string;
   notes?: string;
 }
 
 export function scoreLead(input: LeadInput): LeadScore {
-  const creditGood = input.credit_score === "700_plus";
-  const creditOk = input.credit_score === "650_to_699";
-  const timeGood = input.time_in_business === "over_2_years";
-  const timeOk = input.time_in_business === "6_to_24_months";
-  const revGood = input.monthly_revenue === "over_10k";
-  const revOk = input.monthly_revenue === "3k_to_10k";
+  const creditGood = ["680_699", "700_749", "750_plus"].includes(input.credit_score);
+  const creditOk   = input.credit_score === "650_679";
+  const lowUtil    = ["under_10", "10_29"].includes(input.utilization ?? "");
+  const hasMoney   = ["yes", "questions"].includes(input.investment_ready ?? "");
 
-  if (creditGood && timeGood && revGood) return "hot";
-  if ((creditGood || creditOk) && (timeGood || timeOk) && (revGood || revOk))
-    return "warm";
+  if (creditGood && lowUtil && hasMoney) return "hot";
+  if ((creditGood || creditOk) && hasMoney) return "warm";
   return "cold";
 }
