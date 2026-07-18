@@ -119,13 +119,13 @@ function Hero() {
             funding — without the delays, denials, or hidden fees. See if you qualify today.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href={BOOK_URL}
+            <button
+              onClick={useQualify()}
               className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 text-base font-medium shadow-glow hover:brightness-110 transition"
             >
               Scale My Business Now
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
-            </a>
+            </button>
             <a
               href="#process"
               className="inline-flex items-center gap-2 rounded-full glass px-7 py-3.5 text-base font-medium hover:bg-accent transition"
