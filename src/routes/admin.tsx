@@ -76,6 +76,17 @@ function fmt$(n: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${date} · ${time}`;
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function AdminPage() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem("stl_admin") === "1");
@@ -384,7 +395,7 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
                       <p className="text-xs text-muted-foreground">{l.email} · {l.phone}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{new Date(l.created_at).toLocaleDateString()}</span>
+                      <span className="text-xs text-muted-foreground">{fmtDateTime(l.created_at)}</span>
                       <StatusBadge status={l.status} />
                     </div>
                   </div>
@@ -447,7 +458,7 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
 
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {new Date(lead.created_at).toLocaleDateString()}
+                        <Clock className="h-3 w-3" /> {fmtDateTime(lead.created_at)}
                       </span>
                       <span className="text-xs font-medium bg-muted rounded-lg px-2 py-1">
                         Credit: {CREDIT_LABELS[lead.credit_score] ?? lead.credit_score}
@@ -481,12 +492,12 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
                         <Detail label="Source" value={lead.source ?? "—"} />
                         <Detail label="Pipeline Stage" value={lead.pipeline_stage ?? "New Lead"} />
                         <Detail label="Assigned To" value={lead.assigned_to ?? "Lonnie"} />
-                        <Detail label="Follow-up Date" value={lead.follow_up_date ? new Date(lead.follow_up_date).toLocaleDateString() : "—"} />
-                        <Detail label="Last Contacted" value={lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : "—"} />
+                        <Detail label="Follow-up Date" value={lead.follow_up_date ? fmtDate(lead.follow_up_date) : "—"} />
+                        <Detail label="Last Contacted" value={lead.last_contacted_at ? fmtDateTime(lead.last_contacted_at) : "—"} />
                         {lead.status === "Funded" && (
                           <>
                             <Detail label="Amount Secured" value={lead.funding_amount_secured ? fmt$(lead.funding_amount_secured) : "—"} />
-                            <Detail label="Funded Date" value={lead.funded_at ? new Date(lead.funded_at).toLocaleDateString() : "—"} />
+                            <Detail label="Funded Date" value={lead.funded_at ? fmtDate(lead.funded_at) : "—"} />
                           </>
                         )}
                       </div>
@@ -618,7 +629,7 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
                       <tr key={l.id} className="hover:bg-muted/20 transition">
                         <td className="py-3 font-medium">{l.full_name}</td>
                         <td className="py-3 text-primary font-semibold">{l.funding_amount_secured ? fmt$(l.funding_amount_secured) : "—"}</td>
-                        <td className="py-3 text-muted-foreground">{l.funded_at ? new Date(l.funded_at).toLocaleDateString() : "—"}</td>
+                        <td className="py-3 text-muted-foreground">{l.funded_at ? fmtDate(l.funded_at) : "—"}</td>
                         <td className="py-3">{CREDIT_LABELS[l.credit_score] ?? l.credit_score}</td>
                       </tr>
                     ))}
