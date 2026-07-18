@@ -81,8 +81,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Get funded fast using the credit you already have. Up to $300K in business funding, approved in as little as 24 hours.",
+          "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours.",
       },
+      { property: "og:title", content: "Scale to Legacy — Business Funding for Entrepreneurs" },
+      { name: "twitter:title", content: "Scale to Legacy — Business Funding for Entrepreneurs" },
+      { property: "og:description", content: "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours." },
+      { name: "twitter:description", content: "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours." },
+      { property: "og:image", content: "/images/hero.jpeg" },
+      { name: "twitter:image", content: "/images/hero.jpeg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

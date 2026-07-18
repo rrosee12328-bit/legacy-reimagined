@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Fast, transparent business funding. Approved in as little as 24 hours. See if you qualify today.",
+          "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/images/hero.jpeg" },
