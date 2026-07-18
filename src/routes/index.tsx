@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createContext, useContext, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -14,6 +15,10 @@ import {
   ClipboardCheck,
   BadgeCheck,
 } from "lucide-react";
+import { QualifyDialog } from "@/components/QualifyDialog";
+
+const QualifyCtx = createContext<() => void>(() => {});
+const useQualify = () => useContext(QualifyCtx);
 
 export const Route = createFileRoute("/")({
   head: () => ({
