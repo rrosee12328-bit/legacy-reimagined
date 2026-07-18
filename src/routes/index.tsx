@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createContext, useContext, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -14,6 +15,10 @@ import {
   ClipboardCheck,
   BadgeCheck,
 } from "lucide-react";
+import { QualifyDialog } from "@/components/QualifyDialog";
+
+const QualifyCtx = createContext<() => void>(() => {});
+const useQualify = () => useContext(QualifyCtx);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,23 +43,26 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const BOOK_URL = "https://www.scaletolegacy.com/book-discovery-session";
 const EBOOK_URL = "https://www.scaletolegacy.com/the-key-to-scaling";
 
 function Home() {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      <Nav />
-      <Hero />
-      <Frustrations />
-      <Different />
-      <Process />
-      <LeadMagnet />
-      <Testimonials />
-      <Founder />
-      <FinalCta />
-      <Footer />
-    </div>
+    <QualifyCtx.Provider value={() => setOpen(true)}>
+      <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+        <Nav />
+        <Hero />
+        <Frustrations />
+        <Different />
+        <Process />
+        <LeadMagnet />
+        <Testimonials />
+        <Founder />
+        <FinalCta />
+        <Footer />
+        <QualifyDialog open={open} onClose={() => setOpen(false)} />
+      </div>
+    </QualifyCtx.Provider>
   );
 }
 
@@ -75,12 +83,12 @@ function Nav() {
             <a href="#results" className="hover:text-foreground transition">Results</a>
             <a href="#about" className="hover:text-foreground transition">About</a>
           </nav>
-          <a
-            href={BOOK_URL}
+          <button
+            onClick={useQualify()}
             className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium shadow-glow hover:brightness-110 transition"
           >
             Scale Now <ArrowRight className="h-4 w-4" />
-          </a>
+          </button>
         </div>
       </div>
     </header>
@@ -111,13 +119,13 @@ function Hero() {
             funding — without the delays, denials, or hidden fees. See if you qualify today.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href={BOOK_URL}
+            <button
+              onClick={useQualify()}
               className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 text-base font-medium shadow-glow hover:brightness-110 transition"
             >
               Scale My Business Now
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
-            </a>
+            </button>
             <a
               href="#process"
               className="inline-flex items-center gap-2 rounded-full glass px-7 py-3.5 text-base font-medium hover:bg-accent transition"
@@ -470,12 +478,12 @@ function FinalCta() {
             <p className="mt-6 text-lg text-muted-foreground">
               Get started today and possibly transform your business within as little as a week.
             </p>
-            <a
-              href={BOOK_URL}
+            <button
+              onClick={useQualify()}
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-8 py-4 font-medium shadow-glow hover:brightness-110 transition"
             >
               Scale Your Business <ArrowRight className="h-4 w-4" />
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -499,7 +507,7 @@ function Footer() {
         <div className="flex gap-6 text-sm text-muted-foreground">
           <a href="#why" className="hover:text-foreground">Why Us</a>
           <a href="#process" className="hover:text-foreground">Process</a>
-          <a href={BOOK_URL} className="hover:text-foreground">Book</a>
+          <button onClick={useQualify()} className="hover:text-foreground">Apply</button>
         </div>
       </div>
     </footer>
