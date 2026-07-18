@@ -83,12 +83,21 @@ function Nav() {
             <a href="#results" className="hover:text-foreground transition">Results</a>
             <a href="#about" className="hover:text-foreground transition">About</a>
           </nav>
-          <button
-            onClick={useQualify()}
-            className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium shadow-glow hover:brightness-110 transition"
-          >
-            Scale Now <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition"
+            >
+              Admin
+            </a>
+            <button
+              onClick={useQualify()}
+              className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium shadow-glow hover:brightness-110 transition"
+            >
+              Scale Now <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+
         </div>
       </div>
     </header>
