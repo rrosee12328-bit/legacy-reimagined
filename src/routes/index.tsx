@@ -478,12 +478,12 @@ function FinalCta() {
             <p className="mt-6 text-lg text-muted-foreground">
               Get started today and possibly transform your business within as little as a week.
             </p>
-            <a
-              href={BOOK_URL}
+            <button
+              onClick={useQualify()}
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-8 py-4 font-medium shadow-glow hover:brightness-110 transition"
             >
               Scale Your Business <ArrowRight className="h-4 w-4" />
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -507,7 +507,7 @@ function Footer() {
         <div className="flex gap-6 text-sm text-muted-foreground">
           <a href="#why" className="hover:text-foreground">Why Us</a>
           <a href="#process" className="hover:text-foreground">Process</a>
-          <a href={BOOK_URL} className="hover:text-foreground">Book</a>
+          <button onClick={useQualify()} className="hover:text-foreground">Apply</button>
         </div>
       </div>
     </footer>
