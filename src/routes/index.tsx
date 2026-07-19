@@ -187,6 +187,31 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
+function Vsl() {
+  return (
+    <section className="pt-4 pb-20 md:pt-8 md:pb-28">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <p className="text-sm uppercase tracking-widest text-gold">Watch This First</p>
+          <h2 className="mt-3 text-3xl md:text-4xl font-medium">
+            See how we get entrepreneurs <span className="text-gradient-gold">funded fast.</span>
+          </h2>
+        </div>
+        <div className="relative rounded-3xl overflow-hidden shadow-card border border-border bg-black" style={{ aspectRatio: "16 / 9" }}>
+          <iframe
+            src="https://iframe.mediadelivery.net/embed/708194/8e2dc698-b5a4-4886-b12e-cc3348cc8302?autoplay=false&preload=true"
+            loading="lazy"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
+            title="Scale to Legacy — Watch Now"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Frustrations() {
   const items = [
     {
