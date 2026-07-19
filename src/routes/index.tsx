@@ -273,15 +273,19 @@ function Different() {
               <p className="mt-2 text-muted-foreground">{it.body}</p>
             </div>
           ))}
-          <div className="rounded-3xl overflow-hidden relative min-h-[240px]">
+          <div className="rounded-3xl overflow-hidden relative min-h-[320px] lg:col-span-3">
             <img
               src="/images/different.jpeg"
               alt="Team collaboration"
               className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
-            <div className="absolute bottom-5 left-5 right-5">
-              <p className="font-display text-xl">Real partners. Real results.</p>
+            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-center p-8 md:p-12 max-w-xl">
+              <p className="text-sm uppercase tracking-widest text-gold">Our Clients</p>
+              <p className="mt-3 font-display text-3xl md:text-4xl">Real partners. Real results.</p>
+              <p className="mt-3 text-muted-foreground">
+                From first-time founders to seasoned CEOs, we help business owners turn access into opportunity.
+              </p>
             </div>
           </div>
         </div>
