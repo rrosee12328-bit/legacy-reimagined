@@ -52,7 +52,6 @@ function Home() {
       <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
         <Nav />
         <Hero />
-        <Vsl />
         <Frustrations />
         <Different />
         <Process />
@@ -107,7 +106,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section id="top" className="relative pt-40 pb-28 md:pt-52 md:pb-36">
+    <section id="top" className="relative pt-40 pb-16 md:pt-48 md:pb-20">
       <div
         aria-hidden
         className="absolute inset-0 -z-10"
@@ -115,63 +114,54 @@ function Hero() {
       />
       <div aria-hidden className="absolute inset-0 -z-20 bg-grid opacity-40" />
 
-      <div className="mx-auto max-w-7xl px-6 grid lg:grid-cols-12 gap-12 items-center">
-        <div className="lg:col-span-7 animate-fade-up">
-          <span className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs uppercase tracking-widest text-gold">
-            <Sparkles className="h-3.5 w-3.5" /> Funded in as little as 24 hours
-          </span>
-          <h1 className="mt-6 text-5xl md:text-7xl font-medium leading-[1.02]">
-            Get funded using the <span className="text-gradient-gold">credit you already have.</span>
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground max-w-xl">
-            We help entrepreneurs access up to{" "}
-            <span className="text-foreground font-semibold">$300,000</span> in business
-            funding — without the delays, denials, or hidden fees. See if you qualify today.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              onClick={useQualify()}
-              className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 text-base font-medium shadow-glow hover:brightness-110 transition"
-            >
-              Scale My Business Now
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
-            </button>
-            <a
-              href="#process"
-              className="inline-flex items-center gap-2 rounded-full glass px-7 py-3.5 text-base font-medium hover:bg-accent transition"
-            >
-              See how it works
-            </a>
-          </div>
+      <div className="mx-auto max-w-5xl px-6 text-center">
+        <span className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs uppercase tracking-widest text-gold">
+          <Sparkles className="h-3.5 w-3.5" /> Funded in as little as 24 hours
+        </span>
+        <h1 className="mt-6 text-5xl md:text-7xl font-medium leading-[1.02]">
+          Get funded using the <span className="text-gradient-gold">credit you already have.</span>
+        </h1>
+        <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
+          We help entrepreneurs access up to{" "}
+          <span className="text-foreground font-semibold">$300,000</span> in business
+          funding — without the delays, denials, or hidden fees. See if you qualify today.
+        </p>
 
-          <div className="mt-10 flex items-center gap-8 text-sm text-muted-foreground">
-            <Stat value="$300K" label="Max funding" />
-            <div className="h-8 w-px bg-border" />
-            <Stat value="24h" label="Approval speed" />
-            <div className="h-8 w-px bg-border" />
-            <Stat value="6+" label="Success stories" />
+        <div className="mt-10 max-w-4xl mx-auto">
+          <div className="relative rounded-3xl overflow-hidden shadow-card border border-border bg-black" style={{ aspectRatio: "16 / 9" }}>
+            <iframe
+              src="https://iframe.mediadelivery.net/embed/708194/8e2dc698-b5a4-4886-b12e-cc3348cc8302?autoplay=false&preload=true"
+              loading="lazy"
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+              title="Scale to Legacy — Watch Now"
+            />
           </div>
         </div>
 
-        <div className="lg:col-span-5 relative animate-fade-up">
-          <div className="relative rounded-3xl overflow-hidden shadow-card border border-border">
-            <img
-              src="/images/hero.jpeg"
-              alt="Entrepreneur reviewing funding options"
-              className="w-full h-[520px] object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-            <div className="absolute bottom-6 left-6 right-6 glass rounded-2xl p-4 flex items-center gap-3">
-              <div className="rounded-full bg-primary text-primary-foreground p-2">
-                <BadgeCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Pre-qualify with a soft credit pull</p>
-                <p className="text-xs text-muted-foreground">No impact to your score</p>
-              </div>
-            </div>
-          </div>
-          <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-gradient-to-br from-gold to-gold-soft blur-2xl opacity-60 animate-float" />
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <button
+            onClick={useQualify()}
+            className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 text-base font-medium shadow-glow hover:brightness-110 transition"
+          >
+            Scale My Business Now
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
+          </button>
+          <a
+            href="#process"
+            className="inline-flex items-center gap-2 rounded-full glass px-7 py-3.5 text-base font-medium hover:bg-accent transition"
+          >
+            See how it works
+          </a>
+        </div>
+
+        <div className="mt-10 flex items-center justify-center gap-8 text-sm text-muted-foreground">
+          <Stat value="$300K" label="Max funding" />
+          <div className="h-8 w-px bg-border" />
+          <Stat value="24h" label="Approval speed" />
+          <div className="h-8 w-px bg-border" />
+          <Stat value="6+" label="Success stories" />
         </div>
       </div>
     </section>
@@ -184,31 +174,6 @@ function Stat({ value, label }: { value: string; label: string }) {
       <div className="text-2xl font-display text-foreground">{value}</div>
       <div className="text-xs uppercase tracking-widest">{label}</div>
     </div>
-  );
-}
-
-function Vsl() {
-  return (
-    <section className="pt-4 pb-20 md:pt-8 md:pb-28">
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <p className="text-sm uppercase tracking-widest text-gold">Watch This First</p>
-          <h2 className="mt-3 text-3xl md:text-4xl font-medium">
-            See how we get entrepreneurs <span className="text-gradient-gold">funded fast.</span>
-          </h2>
-        </div>
-        <div className="relative rounded-3xl overflow-hidden shadow-card border border-border bg-black" style={{ aspectRatio: "16 / 9" }}>
-          <iframe
-            src="https://iframe.mediadelivery.net/embed/708194/8e2dc698-b5a4-4886-b12e-cc3348cc8302?autoplay=false&preload=true"
-            loading="lazy"
-            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-            allowFullScreen
-            className="absolute inset-0 w-full h-full"
-            title="Scale to Legacy — Watch Now"
-          />
-        </div>
-      </div>
-    </section>
   );
 }
 
