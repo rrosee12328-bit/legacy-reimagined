@@ -190,7 +190,7 @@ export function QualifyDialog({
               {step === 2 && "What is your personal credit score?"}
               {step === 3 && "What is your current credit utilization?"}
               {step === 4 && "Do you have an LLC or business entity?"}
-              {step === 5 && "Are you ready to invest in getting funded?"}
+              {step === 5 && "Would you be prepared to make an upfront investment if your funding plan requires one?"}
             </h3>
 
             {/* Step 1 — Contact info */}
@@ -297,10 +297,10 @@ export function QualifyDialog({
             {step === 5 && (
               <div className="grid gap-3">
                 <p className="text-sm text-muted-foreground -mt-2 mb-2">
-                  Our process requires a $2,000 upfront investment (credited toward your total) to get started.
+                  Depending on the funding path you qualify for, an upfront investment of up to $2,000 may be required to begin. Any amount paid upfront will be credited toward your total program cost.
                 </p>
                 {[
-                  { v: "yes",          l: "Yes, I'm ready to invest" },
+                  { v: "yes",          l: "Yes, I'm prepared to invest" },
                   { v: "questions",    l: "I have questions first" },
                   { v: "credit_first", l: "I need credit help first" },
                   { v: "no",           l: "Not at this time" },
