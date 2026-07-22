@@ -190,7 +190,7 @@ export function QualifyDialog({
               {step === 2 && "What is your personal credit score?"}
               {step === 3 && "What is your current credit utilization?"}
               {step === 4 && "Do you have an LLC or business entity?"}
-              {step === 5 && "Are you ready to invest in getting funded?"}
+              {step === 5 && "Would you be prepared to make an upfront investment if your funding plan requires one?"}
             </h3>
 
             {/* Step 1 — Contact info */}
