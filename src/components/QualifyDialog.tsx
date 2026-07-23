@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ArrowRight, Loader2, CheckCircle2, TrendingUp, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+// ─── Meta Pixel helper ────────────────────────────────────────────────────────
+declare global {
+  interface Window { fbq?: (...args: unknown[]) => void; }
+}
+function fbq(event: string, name: string, params?: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq(event, name, params ?? {});
+  }
+}
 
 // ─── Calendly links ───────────────────────────────────────────────────────────
 const FUNDING_CALENDLY = "https://calendly.com/vektiss-info/30-minute-vektiss-discovery";
@@ -106,9 +116,20 @@ export function QualifyDialog({
 
     setResult(route);
 
+    // Fire Meta Pixel Lead event with lead data
+    fbq("track", "Lead", {
+      content_name: route === "funding" ? "Business Funding" : route === "credit" ? "Credit Strategy" : "Disqualified",
+      content_category: "Business Funding",
+      status: score,
+    });
+
     // Redirect hot/warm leads to Calendly after a short delay
     if (route === "funding" || route === "credit") {
       const url = route === "funding" ? FUNDING_CALENDLY : CREDIT_CALENDLY;
+      // Fire Schedule event when redirecting to Calendly
+      fbq("track", "Schedule", {
+        content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
+      });
       setTimeout(() => window.open(url, "_blank"), 1800);
     }
   }

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -105,6 +105,16 @@ function Nav() {
 }
 
 function Hero() {
+  // Fire ViewContent when the VSL section loads
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as Window & { fbq?: (...args: unknown[]) => void }).fbq) {
+      (window as Window & { fbq?: (...args: unknown[]) => void }).fbq?.("track", "ViewContent", {
+        content_name: "Scale to Legacy VSL",
+        content_category: "Business Funding",
+      });
+    }
+  }, []);
+
   return (
     <section id="top" className="relative pt-40 pb-16 md:pt-48 md:pb-20">
       <div
