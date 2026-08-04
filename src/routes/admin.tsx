@@ -508,7 +508,7 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
-                        <a href={`https://calendly.com/vektiss-info/30-minute-vektiss-discovery`} target="_blank" rel="noopener noreferrer"
+                        <a href={`https://calendly.com/scaletolegacy`} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-medium hover:brightness-110 transition">
                           <Calendar className="h-3.5 w-3.5" /> Schedule Call
                         </a>
