@@ -128,15 +128,15 @@ export function QualifyDialog({
       status: score,
     });
 
-    // Redirect hot/warm leads to Calendly after a short delay
+    // Send qualified leads to the booking page after a short delay
     if (route === "funding" || route === "credit") {
-      const url = route === "funding" ? FUNDING_CALENDLY : CREDIT_CALENDLY;
-      // Fire Schedule event when redirecting to Calendly
+      const url = bookUrl(route, answers);
       fbq("track", "Schedule", {
         content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
       });
-      setTimeout(() => window.open(url, "_blank"), 1800);
+      setTimeout(() => { window.location.href = url; }, 1800);
     }
+
   }
 
   return (
