@@ -31,7 +31,6 @@ function bookUrl(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Result = "funding" | "credit" | "disqualified" | null;
-type Result = "funding" | "credit" | "disqualified" | null;
 
 interface Answers {
   full_name: string;
