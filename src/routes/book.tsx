@@ -1,6 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+declare global { interface Window { fbq?: (...args: unknown[]) => void; } }
+function fbqTrack(name: string, params?: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.fbq) window.fbq("track", name, params ?? {});
+}
+
 export const Route = createFileRoute("/book")({
   head: () => ({
     meta: [
@@ -46,6 +51,14 @@ function BookPage() {
       type: sp.get("type") ?? "funding",
     });
   }, []);
+
+  // Fire InitiateCheckout when the booking page loads
+  useEffect(() => {
+    fbqTrack("InitiateCheckout", {
+      content_name: params.type === "credit" ? "Credit Strategy Session" : "Funding Strategy Session",
+      content_category: "Business Funding",
+    });
+  }, [params.type]);
 
   // Load Calendly widget script + inline embed
   useEffect(() => {

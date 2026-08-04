@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { CheckCircle2, CalendarCheck, Mail } from "lucide-react";
+
+declare global { interface Window { fbq?: (...args: unknown[]) => void; } }
+function fbqTrack(name: string, params?: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.fbq) window.fbq("track", name, params ?? {});
+}
 
 export const Route = createFileRoute("/thank-you")({
   head: () => ({
@@ -25,6 +31,15 @@ export const Route = createFileRoute("/thank-you")({
 });
 
 function ThankYouPage() {
+  // Fire CompleteRegistration when the thank-you page loads (confirmed booking)
+  useEffect(() => {
+    fbqTrack("CompleteRegistration", {
+      content_name: "Strategy Session Confirmed",
+      content_category: "Business Funding",
+      status: "booked",
+    });
+  }, []);
+
   return (
     <main className="min-h-screen bg-background flex items-center justify-center px-6 py-20">
       <div className="w-full max-w-xl rounded-3xl glass p-10 text-center shadow-card">
