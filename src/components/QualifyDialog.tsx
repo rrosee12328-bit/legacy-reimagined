@@ -108,7 +108,15 @@ export function QualifyDialog({
     const route = routeLead(answers);
     const score = scoreFromResult(route);
 
-    const { data: leadRow, error: dbErr } = await supabase.from("leads").insert({
+    // Generate the id client-side so we can attach it to the booking record
+    // without needing SELECT access on the leads table.
+    const newLeadId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const { error: dbErr } = await supabase.from("leads").insert({
+      id:               newLeadId,
       full_name:        answers.full_name,
       email:            answers.email,
       phone:            answers.phone,
@@ -119,11 +127,11 @@ export function QualifyDialog({
       investment_ready: answers.investment_ready,
       score,
       source:           "qualify_form",
-    }).select("id").single();
+    });
 
     setSub(false);
     setScore(score);
-    if (leadRow?.id) setLeadId(leadRow.id as string);
+    setLeadId(newLeadId);
 
     if (dbErr) {
       // Non-blocking — still show result even if DB write fails
@@ -141,7 +149,7 @@ export function QualifyDialog({
 
     // Send qualified leads to the booking page after a short delay
     if (route === "funding" || route === "credit") {
-      const url = bookUrl(route, answers, { leadId: (leadRow?.id as string) ?? null, score });
+      const url = bookUrl(route, answers, { leadId: newLeadId, score });
       fbq("track", "Schedule", {
         content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
       });
