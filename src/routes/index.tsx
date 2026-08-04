@@ -381,12 +381,42 @@ function LeadMagnet() {
 
 function Testimonials() {
   const items = [
-    { amount: "$130K", speed: "in 24 hours", extra: "+ $130K more in 4 days", who: "Construction Company CEO" },
-    { amount: "$150K", speed: "in 4 days", who: "Author & Coach" },
-    { amount: "$100K", speed: "in 3 days", who: "Real Estate CEO" },
-    { amount: "$100K", speed: "in 7 days", who: "Vending Machine CEO" },
-    { amount: "$100K", speed: "in 3 days", who: "Health & Fitness CEO" },
-    { amount: "$70K", speed: "in 5 days", who: "Compliance Consulting CEO" },
+    {
+      amount: "$260K",
+      speed: "in 4 days",
+      context: "$130K approved in the first 24 hours, then another $130K four days later. He came in with a clean credit profile and no prior business funding history — exactly the type of client this process was built for.",
+      who: "Construction Company CEO",
+    },
+    {
+      amount: "$150K",
+      speed: "in 4 days",
+      context: "Already had a business but had never used her personal credit to fund it. After one strategy session, she had access to $150K in 0% interest business credit — money she used to launch her next project.",
+      who: "Author & Coach",
+    },
+    {
+      amount: "$100K",
+      speed: "in 3 days",
+      context: "Needed capital to close on an investment property. His credit score was strong but he didn't know how to leverage it for business funding. Three days after starting the process, he had $100K available.",
+      who: "Real Estate CEO",
+    },
+    {
+      amount: "$100K",
+      speed: "in 7 days",
+      context: "Scaling a vending machine route and needed equipment capital. He had the income but kept hitting walls with traditional lenders. We used his personal credit profile to unlock $100K at 0% interest.",
+      who: "Vending Machine CEO",
+    },
+    {
+      amount: "$100K",
+      speed: "in 3 days",
+      context: "Wanted to expand her fitness brand but didn't have the capital to hire staff and open a second location. Within 3 days of starting the process, she had $100K in business credit ready to deploy.",
+      who: "Health & Fitness CEO",
+    },
+    {
+      amount: "$70K",
+      speed: "in 5 days",
+      context: "Running a compliance consulting firm and needed working capital to take on larger contracts. No business revenue history required — just a solid personal credit profile and the right strategy.",
+      who: "Compliance Consulting CEO",
+    },
   ];
   return (
     <section id="results" className="py-24">
@@ -407,9 +437,7 @@ function Testimonials() {
                 <span className="font-display text-5xl text-gradient-gold">{t.amount}</span>
                 <span className="text-muted-foreground text-sm">{t.speed}</span>
               </div>
-              {t.extra && (
-                <p className="mt-2 text-sm text-gold-soft">{t.extra}</p>
-              )}
+              <p className="mt-4 text-sm text-muted-foreground leading-relaxed">{t.context}</p>
               <div className="mt-6 flex items-center gap-2 pt-6 border-t border-border">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
                 <p className="text-sm text-muted-foreground italic">{t.who}</p>
