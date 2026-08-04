@@ -172,7 +172,7 @@ export function QualifyDialog({
             title="You may qualify for business funding!"
             body="Your profile looks strong. We're opening your strategy session booking now — or click below to schedule at your convenience."
             cta="Book Your Funding Strategy Session"
-            href={FUNDING_CALENDLY}
+            href={bookUrl("funding", answers)}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval. Results vary based on individual credit profile."
           />
