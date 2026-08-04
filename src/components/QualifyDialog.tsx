@@ -453,27 +453,6 @@ function OptionBtn({
   );
 }
 
-function NavButtons({
-  onNext, onBack, showBack = true,
-}: {
-  onNext: () => void;
-  onBack?: () => void;
-  showBack?: boolean;
-}) {
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={onNext}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition"
-      >
-        Continue <ArrowRight className="h-4 w-4" />
-      </button>
-      {showBack && onBack && (
-        <button type="button" onClick={onBack} className="text-sm text-muted-foreground underline text-center">
-          ← Back
-        </button>
-      )}
-    </div>
-  );
+function QuestionLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-sm font-semibold">{children}</span>;
 }
