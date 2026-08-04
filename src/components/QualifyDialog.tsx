@@ -186,7 +186,7 @@ export function QualifyDialog({
             title="You're closer than you think."
             body="Your credit profile may need some work before you're ready for business funding — and that's exactly what we help with. Book a free credit strategy session to build your plan."
             cta="Book Your Credit Strategy Session"
-            href={CREDIT_CALENDLY}
+            href={bookUrl("credit", answers)}
             onClose={onClose}
             disclaimer="Credit improvement timelines vary based on individual profiles and consistent action."
           />
