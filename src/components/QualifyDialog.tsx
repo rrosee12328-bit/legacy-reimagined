@@ -104,7 +104,12 @@ export function QualifyDialog({
 
 
   async function submit() {
-    if (!answers.investment_ready) { setError("Please select an option."); return; }
+    if (!answers.full_name || !answers.email || !answers.phone) {
+      setError("Please fill in your name, email and phone."); return;
+    }
+    if (!answers.credit_score || !answers.utilization || !answers.llc_status || !answers.investment_ready) {
+      setError("Please answer all questions."); return;
+    }
     setError(null);
     setSub(true);
 
