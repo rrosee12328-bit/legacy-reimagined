@@ -23,17 +23,17 @@ const useQualify = () => useContext(QualifyCtx);
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Scale to Legacy — Business Funding for Entrepreneurs" },
+      { title: "Scale to Legacy — Get Up To $250K In Business Funding At 0% Interest" },
       {
         name: "description",
         content:
-          "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours.",
+          "Stop waiting on bank approvals. Get up to $250K in business funding at 0% interest using the credit you already have — no business revenue or tax returns required.",
       },
-      { property: "og:title", content: "Scale to Legacy — Business Funding for Entrepreneurs" },
+      { property: "og:title", content: "Scale to Legacy — Get Up To $250K In Business Funding At 0% Interest" },
       {
         property: "og:description",
         content:
-          "Get funded fast using the credit you already have. We help entrepreneurs access up to $300,000 in business funding — approved in as little as 24 hours.",
+          "Stop waiting on bank approvals. Get up to $250K in business funding at 0% interest using the credit you already have — no business revenue or tax returns required.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/images/hero.jpeg" },
