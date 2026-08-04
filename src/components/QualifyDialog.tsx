@@ -71,7 +71,6 @@ export function QualifyDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const [step, setStep]       = useState<Step>(1);
   const [result, setResult]   = useState<Result>(null);
   const [submitting, setSub]  = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -90,14 +89,19 @@ export function QualifyDialog({
 
   if (!open) return null;
 
-  const progress = result ? 100 : Math.round(((step - 1) / 5) * 100);
+  const filled = [
+    !!(answers.full_name && answers.email && answers.phone),
+    !!answers.credit_score,
+    !!answers.utilization,
+    !!answers.llc_status,
+    !!answers.investment_ready,
+  ].filter(Boolean).length;
+  const progress = result ? 100 : Math.round((filled / 5) * 100);
 
   function set(field: keyof Answers, value: string) {
     setAnswers((prev) => ({ ...prev, [field]: value }));
   }
 
-  function next() { setStep((s) => (s < 5 ? ((s + 1) as Step) : s)); }
-  function back() { setStep((s) => (s > 1 ? ((s - 1) as Step) : s)); }
 
   async function submit() {
     if (!answers.investment_ready) { setError("Please select an option."); return; }
