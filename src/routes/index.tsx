@@ -126,15 +126,16 @@ function Hero() {
 
       <div className="mx-auto max-w-5xl px-6 text-center">
         <span className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs uppercase tracking-widest text-gold">
-          <Sparkles className="h-3.5 w-3.5" /> Funded in as little as 24 hours
+          <Sparkles className="h-3.5 w-3.5" /> No business revenue or tax returns required
         </span>
-        <h1 className="mt-6 text-5xl md:text-7xl font-medium leading-[1.02]">
-          Get funded using the <span className="text-gradient-gold">credit you already have.</span>
+        <h1 className="mt-6 text-5xl md:text-7xl font-medium leading-[1.02] text-gradient-gold">
+          Get Up To $250K In Business Funding At 0% Interest
         </h1>
-        <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
-          We help entrepreneurs access up to{" "}
-          <span className="text-foreground font-semibold">$300,000</span> in business
-          funding — without the delays, denials, or hidden fees. See if you qualify today.
+        <p className="mt-6 text-lg text-foreground max-w-2xl mx-auto">
+          For Business Owners & Aspiring Entrepreneurs looking to get real money in their hands fast using the credit they already have.
+        </p>
+        <p className="mt-4 text-base text-muted-foreground max-w-2xl mx-auto">
+          Stop waiting on bank approvals. We use your personal credit score as the asset to secure funding with no business revenue or tax returns required.
         </p>
 
         <div className="mt-10 max-w-4xl mx-auto">
@@ -155,7 +156,7 @@ function Hero() {
             onClick={useQualify()}
             className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 text-base font-medium shadow-glow hover:brightness-110 transition"
           >
-            Scale My Business Now
+            Get Funded In One Week
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
           </button>
           <a
@@ -167,7 +168,7 @@ function Hero() {
         </div>
 
         <div className="mt-10 flex items-center justify-center gap-8 text-sm text-muted-foreground">
-          <Stat value="$300K" label="Max funding" />
+          <Stat value="$250K" label="Max funding" />
           <div className="h-8 w-px bg-border" />
           <Stat value="24h" label="Approval speed" />
           <div className="h-8 w-px bg-border" />
