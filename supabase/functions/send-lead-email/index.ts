@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL = "info@scaletolegacynow.com";
-const NOTIFY_EMAIL = "rrose@vektiss.com";
+const NOTIFY_EMAILS = ["rrose@vektiss.com", "lonnie080875@yahoo.com"];
 
 interface Lead {
   id: string;
@@ -248,14 +248,16 @@ serve(async (req) => {
       );
     }
 
-    // Send hot lead notification to team
+    // Send notification to both Ricky and Lonnie for ALL lead types
     let notifSent = false;
-    if (score === "hot") {
-      notifSent = await sendEmail(
-        NOTIFY_EMAIL,
-        `🔥 New Hot Lead: ${lead.full_name} — Scale to Legacy`,
-        hotLeadNotification(lead)
-      );
+    const notifSubject =
+      score === "hot"  ? `🔥 New Hot Lead: ${lead.full_name} — Scale to Legacy` :
+      score === "warm" ? `📈 New Warm Lead: ${lead.full_name} — Scale to Legacy` :
+                         `❄️ New Cold Lead: ${lead.full_name} — Scale to Legacy`;
+
+    for (const email of NOTIFY_EMAILS) {
+      const sent = await sendEmail(email, notifSubject, hotLeadNotification(lead));
+      if (sent) notifSent = true;
     }
 
     return new Response(
