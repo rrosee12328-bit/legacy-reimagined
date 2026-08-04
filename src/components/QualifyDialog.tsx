@@ -12,10 +12,15 @@ function fbq(event: string, name: string, params?: Record<string, unknown>) {
   }
 }
 
-// ─── Calendly links ───────────────────────────────────────────────────────────
-const FUNDING_CALENDLY = "https://calendly.com/vektiss-info/30-minute-vektiss-discovery";
-const CREDIT_CALENDLY  = "https://calendly.com/vektiss-info/30-minute-vektiss-discovery";
+// ─── Booking links ────────────────────────────────────────────────────────────
+const BOOK_PATH        = "/book";
 const EBOOK_URL        = "https://www.scaletolegacy.com/the-key-to-scaling";
+
+function bookUrl(type: "funding" | "credit", a: { full_name: string; email: string }) {
+  const p = new URLSearchParams({ type, name: a.full_name, email: a.email });
+  return `${BOOK_PATH}?${p.toString()}`;
+}
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | 4 | 5;
