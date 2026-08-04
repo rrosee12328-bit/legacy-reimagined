@@ -30,7 +30,7 @@ function bookUrl(
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Step = 1 | 2 | 3 | 4 | 5;
+type Result = "funding" | "credit" | "disqualified" | null;
 type Result = "funding" | "credit" | "disqualified" | null;
 
 interface Answers {
