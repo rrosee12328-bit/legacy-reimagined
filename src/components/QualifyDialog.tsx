@@ -16,8 +16,15 @@ function fbq(event: string, name: string, params?: Record<string, unknown>) {
 const BOOK_PATH        = "/book";
 const EBOOK_URL        = "https://www.scaletolegacy.com/the-key-to-scaling";
 
-function bookUrl(type: "funding" | "credit", a: { full_name: string; email: string }) {
+function bookUrl(
+  type: "funding" | "credit",
+  a: { full_name: string; email: string; phone?: string },
+  meta?: { leadId?: string | null; score?: string | null },
+) {
   const p = new URLSearchParams({ type, name: a.full_name, email: a.email });
+  if (a.phone) p.set("phone", a.phone);
+  if (meta?.leadId) p.set("lead", meta.leadId);
+  if (meta?.score) p.set("score", meta.score);
   return `${BOOK_PATH}?${p.toString()}`;
 }
 
@@ -69,6 +76,8 @@ export function QualifyDialog({
   const [result, setResult]   = useState<Result>(null);
   const [submitting, setSub]  = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [leadId, setLeadId]   = useState<string | null>(null);
+  const [leadScore, setScore] = useState<string | null>(null);
 
   const [answers, setAnswers] = useState<Answers>({
     full_name: "",
@@ -99,7 +108,15 @@ export function QualifyDialog({
     const route = routeLead(answers);
     const score = scoreFromResult(route);
 
+    // Generate the id client-side so we can attach it to the booking record
+    // without needing SELECT access on the leads table.
+    const newLeadId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     const { error: dbErr } = await supabase.from("leads").insert({
+      id:               newLeadId,
       full_name:        answers.full_name,
       email:            answers.email,
       phone:            answers.phone,
@@ -113,6 +130,8 @@ export function QualifyDialog({
     });
 
     setSub(false);
+    setScore(score);
+    setLeadId(newLeadId);
 
     if (dbErr) {
       // Non-blocking — still show result even if DB write fails
@@ -130,7 +149,7 @@ export function QualifyDialog({
 
     // Send qualified leads to the booking page after a short delay
     if (route === "funding" || route === "credit") {
-      const url = bookUrl(route, answers);
+      const url = bookUrl(route, answers, { leadId: newLeadId, score });
       fbq("track", "Schedule", {
         content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
       });
@@ -172,7 +191,7 @@ export function QualifyDialog({
             title="You may qualify for business funding!"
             body="Your profile looks strong. We're opening your strategy session booking now — or click below to schedule at your convenience."
             cta="Book Your Funding Strategy Session"
-            href={bookUrl("funding", answers)}
+            href={bookUrl("funding", answers, { leadId, score: leadScore })}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval. Results vary based on individual credit profile."
           />
@@ -186,7 +205,7 @@ export function QualifyDialog({
             title="You're closer than you think."
             body="Your credit profile may need some work before you're ready for business funding — and that's exactly what we help with. Book a free credit strategy session to build your plan."
             cta="Book Your Credit Strategy Session"
-            href={bookUrl("credit", answers)}
+            href={bookUrl("credit", answers, { leadId, score: leadScore })}
             onClose={onClose}
             disclaimer="Credit improvement timelines vary based on individual profiles and consistent action."
           />

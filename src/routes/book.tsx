@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 declare global { interface Window { fbq?: (...args: unknown[]) => void; } }
 function fbqTrack(name: string, params?: Record<string, unknown>) {
@@ -37,18 +38,24 @@ function BookPage() {
   const [ready, setReady] = useState(false);
 
   // Read prefill + type from the URL without needing typed search params.
-  const [params, setParams] = useState<{ name: string; email: string; type: string }>({
-    name: "",
-    email: "",
-    type: "funding",
-  });
+  const [params, setParams] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    type: string;
+    leadId: string;
+    score: string;
+  }>({ name: "", email: "", phone: "", type: "funding", leadId: "", score: "" });
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     setParams({
       name: sp.get("name") ?? "",
       email: sp.get("email") ?? "",
+      phone: sp.get("phone") ?? "",
       type: sp.get("type") ?? "funding",
+      leadId: sp.get("lead") ?? "",
+      score: sp.get("score") ?? "",
     });
   }, []);
 
@@ -98,8 +105,28 @@ function BookPage() {
     }
   }, [params]);
 
-  // When Calendly confirms the booking, send them to the thank-you page
+  // When Calendly confirms the booking: save it to the CRM, then send them
+  // to the thank-you page.
   useEffect(() => {
+    async function saveAppointment(payload: Record<string, unknown> | undefined) {
+      const evt = (payload?.["event"] ?? {}) as { uri?: string };
+      const invitee = (payload?.["invitee"] ?? {}) as { uri?: string };
+
+      const { error } = await supabase.from("appointments").insert({
+        lead_id: params.leadId || null,
+        lead_score: params.score || null,
+        session_type: params.type === "credit" ? "credit" : "funding",
+        full_name: params.name || null,
+        email: params.email || null,
+        phone: params.phone || null,
+        calendly_event_uri: evt.uri ?? null,
+        calendly_invitee_uri: invitee.uri ?? null,
+        status: "scheduled",
+        source: "website_booking",
+      });
+      if (error) console.error("Appointment save failed:", error.message);
+    }
+
     function onMessage(e: MessageEvent) {
       if (
         typeof e.origin === "string" &&
@@ -108,12 +135,14 @@ function BookPage() {
       ) {
         const w = window as unknown as { fbq?: (...a: unknown[]) => void };
         w.fbq?.("track", "Schedule", { content_name: "Strategy Session Booked" });
-        navigate({ to: "/thank-you" });
+        void saveAppointment(e.data?.payload).finally(() => {
+          navigate({ to: "/thank-you" });
+        });
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [navigate]);
+  }, [navigate, params]);
 
   return (
     <main className="min-h-screen bg-background">

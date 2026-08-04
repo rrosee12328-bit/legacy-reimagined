@@ -65,3 +65,48 @@ $$;
 create trigger leads_set_updated_at
   before update on public.leads
   for each row execute function public.set_updated_at();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Booked appointments (written when a visitor completes Calendly scheduling)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.appointments (
+  id                   uuid primary key default gen_random_uuid(),
+  lead_id              uuid references public.leads(id) on delete set null,
+  lead_score           public.lead_score,
+  session_type         text,                       -- 'funding' | 'credit'
+  full_name            text,
+  email                text,
+  phone                text,
+  calendly_event_uri   text,
+  calendly_invitee_uri text unique,
+  status               text not null default 'scheduled',
+  source               text not null default 'website_booking',
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
+);
+
+-- Data API grants
+grant insert on public.appointments to anon;                                  -- website booking
+grant select, insert, update, delete on public.appointments to authenticated; -- CRM
+grant all on public.appointments to service_role;
+
+alter table public.appointments enable row level security;
+
+create policy "Anon can insert appointments"
+  on public.appointments for insert to anon with check (true);
+
+create policy "Authenticated can read appointments"
+  on public.appointments for select to authenticated using (true);
+
+create policy "Authenticated can update appointments"
+  on public.appointments for update to authenticated using (true) with check (true);
+
+create policy "Authenticated can delete appointments"
+  on public.appointments for delete to authenticated using (true);
+
+create trigger appointments_set_updated_at
+  before update on public.appointments
+  for each row execute function public.set_updated_at();
+
+create index if not exists appointments_lead_id_idx on public.appointments(lead_id);
