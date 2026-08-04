@@ -30,7 +30,6 @@ function bookUrl(
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Step = 1 | 2 | 3 | 4 | 5;
 type Result = "funding" | "credit" | "disqualified" | null;
 
 interface Answers {
@@ -72,7 +71,6 @@ export function QualifyDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const [step, setStep]       = useState<Step>(1);
   const [result, setResult]   = useState<Result>(null);
   const [submitting, setSub]  = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -91,17 +89,27 @@ export function QualifyDialog({
 
   if (!open) return null;
 
-  const progress = result ? 100 : Math.round(((step - 1) / 5) * 100);
+  const filled = [
+    !!(answers.full_name && answers.email && answers.phone),
+    !!answers.credit_score,
+    !!answers.utilization,
+    !!answers.llc_status,
+    !!answers.investment_ready,
+  ].filter(Boolean).length;
+  const progress = result ? 100 : Math.round((filled / 5) * 100);
 
   function set(field: keyof Answers, value: string) {
     setAnswers((prev) => ({ ...prev, [field]: value }));
   }
 
-  function next() { setStep((s) => (s < 5 ? ((s + 1) as Step) : s)); }
-  function back() { setStep((s) => (s > 1 ? ((s - 1) as Step) : s)); }
 
   async function submit() {
-    if (!answers.investment_ready) { setError("Please select an option."); return; }
+    if (!answers.full_name || !answers.email || !answers.phone) {
+      setError("Please fill in your name, email and phone."); return;
+    }
+    if (!answers.credit_score || !answers.utilization || !answers.llc_status || !answers.investment_ready) {
+      setError("Please answer all questions."); return;
+    }
     setError(null);
     setSub(true);
 
@@ -224,143 +232,116 @@ export function QualifyDialog({
           />
         )}
 
-        {/* ── FORM STEPS ───────────────────────────────────────────────── */}
+        {/* ── SINGLE-PAGE FORM ─────────────────────────────────────────── */}
         {!result && (
           <>
             <p className="text-xs uppercase tracking-widest text-gold mb-1">
-              Step {step} of 5 — Pre-Qualify
+              Pre-Qualify
             </p>
             <h3 className="font-display text-2xl mb-6">
-              {step === 1 && "Let's start with your basic info."}
-              {step === 2 && "What is your personal credit score?"}
-              {step === 3 && "What is your current credit utilization?"}
-              {step === 4 && "Do you have an LLC or business entity?"}
-              {step === 5 && "Would you be prepared to make an upfront investment if your funding plan requires one?"}
+              See if you qualify — takes about 60 seconds.
             </h3>
 
-            {/* Step 1 — Contact info */}
-            {step === 1 && (
+            <div className="grid gap-7">
+              {/* Contact info */}
               <div className="grid gap-4">
                 <Field label="Full Name" value={answers.full_name} onChange={(v) => set("full_name", v)} required />
                 <Field label="Email Address" type="email" value={answers.email} onChange={(v) => set("email", v)} required />
                 <Field label="Phone Number" type="tel" value={answers.phone} onChange={(v) => set("phone", v)} required />
-                <NavButtons
-                  onNext={() => {
-                    if (!answers.full_name || !answers.email || !answers.phone) {
-                      setError("Please fill in all fields.");
-                      return;
-                    }
-                    setError(null);
-                    next();
-                  }}
-                  showBack={false}
-                />
               </div>
-            )}
 
-            {/* Step 2 — Credit score */}
-            {step === 2 && (
+              {/* Credit score */}
               <div className="grid gap-3">
-                {[
-                  { v: "below_600", l: "Below 600" },
-                  { v: "600_649",   l: "600 – 649" },
-                  { v: "650_679",   l: "650 – 679" },
-                  { v: "680_699",   l: "680 – 699" },
-                  { v: "700_749",   l: "700 – 749" },
-                  { v: "750_plus",  l: "750+" },
-                ].map((o) => (
-                  <OptionBtn
-                    key={o.v}
-                    label={o.l}
-                    selected={answers.credit_score === o.v}
-                    onClick={() => { set("credit_score", o.v); setError(null); }}
-                  />
-                ))}
-                <NavButtons
-                  onNext={() => {
-                    if (!answers.credit_score) { setError("Please select an option."); return; }
-                    setError(null); next();
-                  }}
-                  onBack={back}
-                />
+                <QuestionLabel>What is your personal credit score?</QuestionLabel>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { v: "below_600", l: "Below 600" },
+                    { v: "600_649",   l: "600 – 649" },
+                    { v: "650_679",   l: "650 – 679" },
+                    { v: "680_699",   l: "680 – 699" },
+                    { v: "700_749",   l: "700 – 749" },
+                    { v: "750_plus",  l: "750+" },
+                  ].map((o) => (
+                    <OptionBtn
+                      key={o.v}
+                      label={o.l}
+                      selected={answers.credit_score === o.v}
+                      onClick={() => { set("credit_score", o.v); setError(null); }}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
 
-            {/* Step 3 — Utilization */}
-            {step === 3 && (
+              {/* Utilization */}
               <div className="grid gap-3">
-                {[
-                  { v: "under_10", l: "Under 10%" },
-                  { v: "10_29",    l: "10% – 29%" },
-                  { v: "30_49",    l: "30% – 49%" },
-                  { v: "50_plus",  l: "50% or more" },
-                ].map((o) => (
-                  <OptionBtn
-                    key={o.v}
-                    label={o.l}
-                    selected={answers.utilization === o.v}
-                    onClick={() => { set("utilization", o.v); setError(null); }}
-                  />
-                ))}
-                <NavButtons
-                  onNext={() => {
-                    if (!answers.utilization) { setError("Please select an option."); return; }
-                    setError(null); next();
-                  }}
-                  onBack={back}
-                />
+                <QuestionLabel>What is your current credit utilization?</QuestionLabel>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { v: "under_10", l: "Under 10%" },
+                    { v: "10_29",    l: "10% – 29%" },
+                    { v: "30_49",    l: "30% – 49%" },
+                    { v: "50_plus",  l: "50% or more" },
+                  ].map((o) => (
+                    <OptionBtn
+                      key={o.v}
+                      label={o.l}
+                      selected={answers.utilization === o.v}
+                      onClick={() => { set("utilization", o.v); setError(null); }}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
 
-            {/* Step 4 — LLC status */}
-            {step === 4 && (
+              {/* LLC */}
               <div className="grid gap-3">
-                {[
-                  { v: "yes",      l: "Yes, I have one" },
-                  { v: "no",       l: "No, but I want one" },
-                  { v: "forming",  l: "In the process" },
-                  { v: "not_sure", l: "Not sure yet" },
-                ].map((o) => (
-                  <OptionBtn
-                    key={o.v}
-                    label={o.l}
-                    selected={answers.llc_status === o.v}
-                    onClick={() => { set("llc_status", o.v); setError(null); }}
-                  />
-                ))}
-                <NavButtons
-                  onNext={() => {
-                    if (!answers.llc_status) { setError("Please select an option."); return; }
-                    setError(null); next();
-                  }}
-                  onBack={back}
-                />
+                <QuestionLabel>Do you have an LLC or business entity?</QuestionLabel>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { v: "yes",      l: "Yes, I have one" },
+                    { v: "no",       l: "No, but I want one" },
+                    { v: "forming",  l: "In the process" },
+                    { v: "not_sure", l: "Not sure yet" },
+                  ].map((o) => (
+                    <OptionBtn
+                      key={o.v}
+                      label={o.l}
+                      selected={answers.llc_status === o.v}
+                      onClick={() => { set("llc_status", o.v); setError(null); }}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
 
-            {/* Step 5 — Investment readiness */}
-            {step === 5 && (
+              {/* Investment readiness */}
               <div className="grid gap-3">
-                <p className="text-sm text-muted-foreground -mt-2 mb-2">
+                <QuestionLabel>
+                  Would you be prepared to make an upfront investment if your funding plan requires one?
+                </QuestionLabel>
+                <p className="text-sm text-muted-foreground">
                   Depending on the funding path you qualify for, an upfront investment of up to $2,000 may be required to begin. Any amount paid upfront will be credited toward your total program cost.
                 </p>
-                {[
-                  { v: "yes",          l: "Yes, I'm prepared to invest" },
-                  { v: "questions",    l: "I have questions first" },
-                  { v: "credit_first", l: "I need credit help first" },
-                  { v: "no",           l: "Not at this time" },
-                ].map((o) => (
-                  <OptionBtn
-                    key={o.v}
-                    label={o.l}
-                    selected={answers.investment_ready === o.v}
-                    onClick={() => { set("investment_ready", o.v); setError(null); }}
-                  />
-                ))}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { v: "yes",          l: "Yes, I'm prepared to invest" },
+                    { v: "questions",    l: "I have questions first" },
+                    { v: "credit_first", l: "I need credit help first" },
+                    { v: "no",           l: "Not at this time" },
+                  ].map((o) => (
+                    <OptionBtn
+                      key={o.v}
+                      label={o.l}
+                      selected={answers.investment_ready === o.v}
+                      onClick={() => { set("investment_ready", o.v); setError(null); }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
                 <button
                   onClick={submit}
                   disabled={submitting}
-                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition disabled:opacity-60"
                 >
                   {submitting ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</>
@@ -368,14 +349,11 @@ export function QualifyDialog({
                     <>See My Results <ArrowRight className="h-4 w-4" /></>
                   )}
                 </button>
-                <button onClick={back} className="text-sm text-muted-foreground underline text-center">
-                  ← Back
-                </button>
                 <p className="text-xs text-muted-foreground text-center">
                   By submitting, you agree to be contacted about funding options. Funding subject to credit approval.
                 </p>
               </div>
-            )}
+            </div>
 
             {error && (
               <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -384,6 +362,7 @@ export function QualifyDialog({
             )}
           </>
         )}
+
       </div>
     </div>
   );
@@ -474,27 +453,6 @@ function OptionBtn({
   );
 }
 
-function NavButtons({
-  onNext, onBack, showBack = true,
-}: {
-  onNext: () => void;
-  onBack?: () => void;
-  showBack?: boolean;
-}) {
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={onNext}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition"
-      >
-        Continue <ArrowRight className="h-4 w-4" />
-      </button>
-      {showBack && onBack && (
-        <button type="button" onClick={onBack} className="text-sm text-muted-foreground underline text-center">
-          ← Back
-        </button>
-      )}
-    </div>
-  );
+function QuestionLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-sm font-semibold">{children}</span>;
 }
