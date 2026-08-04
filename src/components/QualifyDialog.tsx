@@ -12,10 +12,15 @@ function fbq(event: string, name: string, params?: Record<string, unknown>) {
   }
 }
 
-// ─── Calendly links ───────────────────────────────────────────────────────────
-const FUNDING_CALENDLY = "https://calendly.com/vektiss-info/30-minute-vektiss-discovery";
-const CREDIT_CALENDLY  = "https://calendly.com/vektiss-info/30-minute-vektiss-discovery";
+// ─── Booking links ────────────────────────────────────────────────────────────
+const BOOK_PATH        = "/book";
 const EBOOK_URL        = "https://www.scaletolegacy.com/the-key-to-scaling";
+
+function bookUrl(type: "funding" | "credit", a: { full_name: string; email: string }) {
+  const p = new URLSearchParams({ type, name: a.full_name, email: a.email });
+  return `${BOOK_PATH}?${p.toString()}`;
+}
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -123,15 +128,15 @@ export function QualifyDialog({
       status: score,
     });
 
-    // Redirect hot/warm leads to Calendly after a short delay
+    // Send qualified leads to the booking page after a short delay
     if (route === "funding" || route === "credit") {
-      const url = route === "funding" ? FUNDING_CALENDLY : CREDIT_CALENDLY;
-      // Fire Schedule event when redirecting to Calendly
+      const url = bookUrl(route, answers);
       fbq("track", "Schedule", {
         content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
       });
-      setTimeout(() => window.open(url, "_blank"), 1800);
+      setTimeout(() => { window.location.href = url; }, 1800);
     }
+
   }
 
   return (
@@ -167,7 +172,7 @@ export function QualifyDialog({
             title="You may qualify for business funding!"
             body="Your profile looks strong. We're opening your strategy session booking now — or click below to schedule at your convenience."
             cta="Book Your Funding Strategy Session"
-            href={FUNDING_CALENDLY}
+            href={bookUrl("funding", answers)}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval. Results vary based on individual credit profile."
           />
@@ -181,7 +186,7 @@ export function QualifyDialog({
             title="You're closer than you think."
             body="Your credit profile may need some work before you're ready for business funding — and that's exactly what we help with. Book a free credit strategy session to build your plan."
             cta="Book Your Credit Strategy Session"
-            href={CREDIT_CALENDLY}
+            href={bookUrl("credit", answers)}
             onClose={onClose}
             disclaimer="Credit improvement timelines vary based on individual profiles and consistent action."
           />
@@ -387,8 +392,8 @@ function ResultScreen({
       <p className="mt-3 text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">{body}</p>
       <a
         href={href}
-        target="_blank"
-        rel="noopener noreferrer"
+        target={href.startsWith("/") ? undefined : "_blank"}
+        rel={href.startsWith("/") ? undefined : "noopener noreferrer"}
         className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition"
       >
         {cta} <ArrowRight className="h-4 w-4" />
