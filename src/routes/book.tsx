@@ -59,9 +59,13 @@ function BookPage() {
     });
   }, []);
 
-  // Fire InitiateCheckout when the booking page loads
+  // Fire InitiateCheckout + SubmitApplication when the booking page loads
   useEffect(() => {
     fbqTrack("InitiateCheckout", {
+      content_name: params.type === "credit" ? "Credit Strategy Session" : "Funding Strategy Session",
+      content_category: "Business Funding",
+    });
+    fbqTrack("SubmitApplication", {
       content_name: params.type === "credit" ? "Credit Strategy Session" : "Funding Strategy Session",
       content_category: "Business Funding",
     });

@@ -31,11 +31,16 @@ export const Route = createFileRoute("/thank-you")({
 });
 
 function ThankYouPage() {
-  // Fire Schedule (campaign conversion event) + CompleteRegistration on confirmed booking
+  // Fire Schedule + SubmitApplication + CompleteRegistration on confirmed booking
   useEffect(() => {
     fbqTrack("Schedule", {
       content_name: "Strategy Session Confirmed",
       content_category: "Business Funding",
+    });
+    fbqTrack("SubmitApplication", {
+      content_name: "Strategy Session Confirmed",
+      content_category: "Business Funding",
+      status: "booked",
     });
     fbqTrack("CompleteRegistration", {
       content_name: "Strategy Session Confirmed",

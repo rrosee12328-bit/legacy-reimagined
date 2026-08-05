@@ -148,9 +148,14 @@ export function QualifyDialog({
 
     setResult(route);
 
-    // Fire Meta Pixel Lead event with lead data
+    // Fire Meta Pixel Lead + SubmitApplication events on form submit
     fbq("track", "Lead", {
       content_name: route === "funding" ? "Business Funding" : route === "credit" ? "Credit Strategy" : "Disqualified",
+      content_category: "Business Funding",
+      status: score,
+    });
+    fbq("track", "SubmitApplication", {
+      content_name: "Funding Pre-Qualification",
       content_category: "Business Funding",
       status: score,
     });
