@@ -31,8 +31,12 @@ export const Route = createFileRoute("/thank-you")({
 });
 
 function ThankYouPage() {
-  // Fire CompleteRegistration when the thank-you page loads (confirmed booking)
+  // Fire Schedule (campaign conversion event) + CompleteRegistration on confirmed booking
   useEffect(() => {
+    fbqTrack("Schedule", {
+      content_name: "Strategy Session Confirmed",
+      content_category: "Business Funding",
+    });
     fbqTrack("CompleteRegistration", {
       content_name: "Strategy Session Confirmed",
       content_category: "Business Funding",
