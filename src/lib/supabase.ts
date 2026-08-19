@@ -28,12 +28,10 @@ export interface LeadInput {
 }
 
 export function scoreLead(input: LeadInput): LeadScore {
-  const creditGood = ["680_699", "700_749", "750_plus"].includes(input.credit_score);
-  const creditOk   = input.credit_score === "650_679";
-  const lowUtil    = ["under_10", "10_29"].includes(input.utilization ?? "");
-  const hasMoney   = ["yes", "questions"].includes(input.investment_ready ?? "");
+  const qualifiesForFunding = ["680_699", "700_749", "750_plus"].includes(input.credit_score);
+  const explicitlyInvestmentReady = input.investment_ready === "yes";
 
-  if (creditGood && lowUtil && hasMoney) return "hot";
-  if ((creditGood || creditOk) && hasMoney) return "warm";
+  if (qualifiesForFunding) return "hot";
+  if (explicitlyInvestmentReady) return "warm";
   return "cold";
 }
