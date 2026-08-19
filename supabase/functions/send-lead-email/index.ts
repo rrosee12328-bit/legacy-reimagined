@@ -111,10 +111,10 @@ function coldLeadEmail(lead: Lead): string {
   const name = escapeHtml(lead.full_name);
   return wrapApplicantEmail(`
     <h2>Thank you for applying, ${name}.</h2>
-    <p>Based on the information you shared, you are not currently eligible to move into the Scale to Legacy funding or credit-support process.</p>
-    <p>Our credit-support path is designed for people who are ready to make the required investment in improving and positioning their credit profile. Since you indicated that you are not ready for that investment at this time, we are not opening a strategy calendar for you today.</p>
-    <p>Your best next step is to focus on strengthening and maintaining your personal credit profile, while creating a plan that allows you to invest in a credit-support solution when you are ready.</p>
-    <p>When your situation changes and you are prepared to move forward, you are welcome to submit a new qualification form. We will be here to reassess your next steps then.</p>
+    <p>Based on the information you shared, it looks like this may not be the right time to move into the Scale to Legacy funding or credit-support process — and that is completely okay.</p>
+    <p>We want you to move forward when you feel prepared and supported, not rushed. Our credit-support path is designed for people who are ready to make the investment in strengthening their credit profile and positioning themselves for future funding opportunities.</p>
+    <p>For now, the best thing you can do is focus on building and maintaining a stronger personal credit foundation at your own pace.</p>
+    <p>When your circumstances change and you feel ready to take the next step, you are always welcome to come back and reapply. We will be here to help you understand your options then.</p>
     <p style="margin-top:28px;">— The Scale to Legacy Team</p>
   `);
 }
