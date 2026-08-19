@@ -352,18 +352,13 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
               {/* Investment readiness */}
               <div className="grid gap-3">
                 <QuestionLabel>
-                  If your credit needs improvement before you can qualify for business funding, are
-                  you ready to invest in credit support?
+                  If your credit score is below 680, an investment to improve your credit may be
+                  needed before you can pursue business funding. Are you prepared for that?
                 </QuestionLabel>
-                <p className="text-sm text-muted-foreground">
-                  Credit support is for people who want to strengthen their personal credit profile
-                  before pursuing business funding. An upfront investment of up to $2,000 may be
-                  required and is credited toward your total program cost.
-                </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { v: "yes", l: "Yes, I’m ready to invest in credit support" },
-                    { v: "no", l: "No, not at this time" },
+                    { v: "yes", l: "Yes" },
+                    { v: "no", l: "No" },
                   ].map((o) => (
                     <OptionBtn
                       key={o.v}
