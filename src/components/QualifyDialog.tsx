@@ -352,20 +352,18 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
               {/* Investment readiness */}
               <div className="grid gap-3">
                 <QuestionLabel>
-                  Would you be prepared to make an upfront investment if your funding plan requires
-                  one?
+                  If your credit needs improvement before you can qualify for business funding, are
+                  you ready to invest in credit support?
                 </QuestionLabel>
                 <p className="text-sm text-muted-foreground">
-                  Depending on the funding path you qualify for, an upfront investment of up to
-                  $2,000 may be required to begin. Any amount paid upfront will be credited toward
-                  your total program cost.
+                  Credit support is for people who want to strengthen their personal credit profile
+                  before pursuing business funding. An upfront investment of up to $2,000 may be
+                  required and is credited toward your total program cost.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { v: "yes", l: "Yes, I'm prepared to invest" },
-                    { v: "questions", l: "I have questions first" },
-                    { v: "credit_first", l: "I need credit help first" },
-                    { v: "no", l: "Not at this time" },
+                    { v: "yes", l: "Yes, I’m ready to invest in credit support" },
+                    { v: "no", l: "No, not at this time" },
                   ].map((o) => (
                     <OptionBtn
                       key={o.v}

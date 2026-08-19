@@ -129,10 +129,8 @@ const creditLabels: Record<string, string> = {
 };
 
 const investmentLabels: Record<string, string> = {
-  yes: "Yes, prepared to invest",
-  questions: "Has questions first",
-  credit_first: "Needs credit help first",
-  no: "Not at this time",
+  yes: "Yes — ready to invest in credit support",
+  no: "No — not at this time",
 };
 
 const notificationConfig: Record<
