@@ -172,16 +172,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       status: score,
     });
 
-    // Send qualified leads to the booking page after a short delay
-    if (route === "funding" || route === "credit") {
-      const url = bookUrl(route, answers, { leadId: newLeadId, score });
-      fbq("track", "Schedule", {
-        content_name: route === "funding" ? "Funding Strategy Session" : "Credit Strategy Session",
-      });
-      setTimeout(() => {
-        window.location.href = url;
-      }, 1800);
-    }
+    // Qualified leads stay on this result screen so the embedded calendar opens immediately.
+    // The Schedule event fires only after Calendly confirms an actual appointment.
   }
 
   return (
@@ -212,7 +204,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             color="text-primary"
             bg="bg-primary/15"
             title="You may qualify for business funding."
-            body="You’re on the final step. Choose a time below now to complete your funding strategy session booking."
+            body="You’re on the final step. Please choose the available date and time that works best for you below to complete your funding strategy session booking."
             bookingType="funding"
             name={answers.full_name}
             email={answers.email}
@@ -229,7 +221,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             color="text-gold"
             bg="bg-gold/15"
             title="You can move into the credit strategy step."
-            body="You’re on the final step. Choose a time below now to complete your credit strategy session booking."
+            body="You’re on the final step. Please choose the available date and time that works best for you below to complete your credit strategy session booking."
             bookingType="credit"
             name={answers.full_name}
             email={answers.email}

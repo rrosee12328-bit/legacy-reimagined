@@ -79,8 +79,8 @@ function BookPage() {
           Complete your {sessionName} session booking
         </h1>
         <p className="mt-3 text-sm text-muted-foreground max-w-xl mx-auto">
-          Choose a time below. Your appointment is confirmed only after you select a time and
-          receive the confirmation.
+          Please choose the available date and time that works best for you below. Your appointment
+          is confirmed only after you select a time and receive the confirmation.
         </p>
       </section>
       <section className="mx-auto max-w-4xl px-4 pb-20">
