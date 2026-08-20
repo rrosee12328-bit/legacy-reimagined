@@ -18,14 +18,12 @@ export const Route = createFileRoute("/book")({
       { title: "Book Your Strategy Session — Scale To Legacy" },
       {
         name: "description",
-        content:
-          "Pick a time for your funding or credit strategy session with the Scale To Legacy team.",
+        content: "Pick a time for your Scale To Legacy funding strategy session.",
       },
       { property: "og:title", content: "Book Your Strategy Session — Scale To Legacy" },
       {
         property: "og:description",
-        content:
-          "Pick a time for your funding or credit strategy session with the Scale To Legacy team.",
+        content: "Pick a time for your Scale To Legacy funding strategy session.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -40,7 +38,7 @@ function BookPage() {
   const [params, setParams] = useState({
     name: "",
     email: "",
-    type: "funding" as "funding" | "credit",
+    score: "",
   });
 
   useEffect(() => {
@@ -48,35 +46,59 @@ function BookPage() {
     setParams({
       name: search.get("name") ?? "",
       email: search.get("email") ?? "",
-      type: search.get("type") === "credit" ? "credit" : "funding",
+      score: search.get("score") ?? "",
     });
   }, []);
 
+  const isEligibleForFunding = params.score === "hot";
+
   useEffect(() => {
-    const sessionName =
-      params.type === "credit" ? "Credit Strategy Session" : "Funding Strategy Session";
+    if (!isEligibleForFunding) return;
     fbqTrack("InitiateCheckout", {
-      content_name: sessionName,
+      content_name: "Funding Strategy Session",
       content_category: "Business Funding",
     });
     fbqTrack("SubmitApplication", {
-      content_name: sessionName,
+      content_name: "Funding Strategy Session",
       content_category: "Business Funding",
     });
-  }, [params.type]);
+  }, [isEligibleForFunding]);
 
   const handleScheduled = useCallback(() => {
     navigate({ to: "/thank-you" });
   }, [navigate]);
 
-  const sessionName = params.type === "credit" ? "credit strategy" : "funding strategy";
+  if (!isEligibleForFunding) {
+    return (
+      <main className="min-h-screen bg-background grid place-items-center px-6 text-center">
+        <section className="max-w-lg">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gold">
+            Funding Readiness
+          </p>
+          <h1 className="mt-3 font-display text-3xl md:text-4xl">
+            This booking page is for 680+ funding applicants.
+          </h1>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            Scale to Legacy funding sessions are reserved for applicants who have completed the
+            qualification form and reported a personal credit score of 680 or higher.
+          </p>
+          <a
+            href="/"
+            className="mt-7 inline-flex rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground"
+          >
+            Return to the Funding Readiness Form
+          </a>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background">
       <section className="mx-auto max-w-4xl px-6 pt-12 pb-7 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-gold">Final Step</p>
         <h1 className="mt-3 font-display text-3xl md:text-4xl">
-          Complete your {sessionName} session booking
+          Complete your funding strategy session booking
         </h1>
         <p className="mt-3 text-sm text-muted-foreground max-w-xl mx-auto">
           Please choose the available date and time that works best for you below. Your appointment
@@ -85,7 +107,6 @@ function BookPage() {
       </section>
       <section className="mx-auto max-w-4xl px-4 pb-20">
         <CalendlyBookingEmbed
-          type={params.type}
           name={params.name}
           email={params.email}
           onScheduled={handleScheduled}

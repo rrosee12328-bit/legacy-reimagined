@@ -28,10 +28,5 @@ export interface LeadInput {
 }
 
 export function scoreLead(input: LeadInput): LeadScore {
-  const qualifiesForFunding = ["680_699", "700_749", "750_plus"].includes(input.credit_score);
-  const explicitlyInvestmentReady = input.investment_ready === "yes";
-
-  if (qualifiesForFunding) return "hot";
-  if (explicitlyInvestmentReady) return "warm";
-  return "cold";
+  return ["680_699", "700_749", "750_plus"].includes(input.credit_score) ? "hot" : "cold";
 }

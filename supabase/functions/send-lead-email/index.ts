@@ -11,14 +11,13 @@ interface Lead {
   phone: string;
   credit_score: string;
   utilization?: string;
-  investment_ready?: string;
   score: "hot" | "warm" | "cold";
   status: string;
   source?: string;
   created_at: string;
 }
 
-type LeadScore = "hot" | "warm" | "cold";
+type LeadScore = "hot" | "cold";
 
 function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "—")
@@ -95,26 +94,14 @@ function hotLeadEmail(lead: Lead): string {
   `);
 }
 
-function warmLeadEmail(lead: Lead): string {
-  const name = escapeHtml(lead.full_name);
-  return wrapApplicantEmail(`
-    <h2>Thank you, ${name}.</h2>
-    <p>Based on the information you shared and your stated readiness to invest, you can move to the next step in the Scale to Legacy credit-support process.</p>
-    <p>Your credit strategy session is where we review your current position and discuss a practical path toward becoming better positioned for future funding opportunities.</p>
-    <p>If the calendar is open in front of you now, choose the time that works best. Your appointment is not complete until you select a time and receive a confirmation.</p>
-    <p>Credit timelines and funding outcomes vary by individual profile and consistent action. We look forward to speaking with you.</p>
-    <p style="margin-top:28px;">— The Scale to Legacy Team</p>
-  `);
-}
-
 function coldLeadEmail(lead: Lead): string {
   const name = escapeHtml(lead.full_name);
   return wrapApplicantEmail(`
     <h2>Thank you for applying, ${name}.</h2>
-    <p>Based on the information you shared, it looks like this may not be the right time to move into the Scale to Legacy funding or credit-support process — and that is completely okay.</p>
-    <p>We want you to move forward when you feel prepared and supported, not rushed. Our credit-support path is designed for people who are ready to make the investment in strengthening their credit profile and positioning themselves for future funding opportunities.</p>
-    <p>For now, the best thing you can do is focus on building and maintaining a stronger personal credit foundation at your own pace.</p>
-    <p>When your circumstances change and you feel ready to take the next step, you are always welcome to come back and reapply. We will be here to help you understand your options then.</p>
+    <p>Based on the information you shared, you are not currently eligible to schedule a Scale to Legacy funding call — and that is completely okay.</p>
+    <p>Our funding sessions are reserved for applicants who report a personal credit score of 680 or higher. We want you to move forward when you are prepared and positioned for that next step, not rushed.</p>
+    <p>For now, focus on strengthening and maintaining your personal credit profile at your own pace. When your score reaches the 680+ benchmark, you are welcome to come back and reapply.</p>
+    <p>We will be here to help you understand your funding options when the time is right.</p>
     <p style="margin-top:28px;">— The Scale to Legacy Team</p>
   `);
 }
@@ -126,11 +113,6 @@ const creditLabels: Record<string, string> = {
   "680_699": "680–699",
   "700_749": "700–749",
   "750_plus": "750+",
-};
-
-const investmentLabels: Record<string, string> = {
-  yes: "Yes — ready to invest in credit support",
-  no: "No — not at this time",
 };
 
 const notificationConfig: Record<
@@ -155,26 +137,16 @@ const notificationConfig: Record<
       "This applicant reported a score of 680 or higher and has been shown the funding calendar.",
     nextAction: "Review the profile and follow up around the funding appointment.",
   },
-  warm: {
-    subjectPrefix: "New Warm Lead",
-    headline: "New Warm Lead — Scale to Legacy",
-    badge: "WARM · CREDIT STRATEGY",
-    badgeColor: "#d97706",
-    route: "Credit strategy calendar",
-    summary:
-      "This applicant is below 680 and explicitly selected that they are prepared to invest in the credit-support process. They have been shown the credit strategy calendar.",
-    nextAction: "Review the profile and follow up around the credit strategy appointment.",
-  },
   cold: {
     subjectPrefix: "New Nurture Lead",
     headline: "New Nurture Lead — Scale to Legacy",
     badge: "COLD · NO CALENDAR",
     badgeColor: "#2563eb",
-    route: "Education-only nurture path",
+    route: "680+ funding readiness nurture",
     summary:
-      "This applicant is below 680 and did not select that they are prepared to invest. They received next-step education only and were not shown a calendar.",
+      "This applicant reported a personal credit score below 680. They were not shown a funding calendar.",
     nextAction:
-      "Keep this lead in nurture. Do not request a booking unless they reapply after their readiness changes.",
+      "Keep this lead in nurture. Do not offer or send a booking link; invite them to reapply after their reported score reaches 680 or higher.",
   },
 };
 
@@ -185,9 +157,6 @@ function internalLeadNotification(lead: Lead, score: LeadScore): string {
   const phone = escapeHtml(lead.phone);
   const creditScore = escapeHtml(creditLabels[lead.credit_score] ?? lead.credit_score);
   const utilization = escapeHtml(lead.utilization?.replace(/_/g, " ").replace("plus", "+") ?? "—");
-  const investmentReady = escapeHtml(
-    investmentLabels[lead.investment_ready ?? ""] ?? lead.investment_ready ?? "—",
-  );
   const source = escapeHtml(lead.source ?? "qualify_form");
   const submitted = escapeHtml(new Date(lead.created_at).toLocaleString("en-US", { hour12: true }));
 
@@ -227,7 +196,6 @@ function internalLeadNotification(lead: Lead, score: LeadScore): string {
       <div class="row"><span class="label">Phone</span><span class="value">${phone}</span></div>
       <div class="row"><span class="label">Credit score</span><span class="value">${creditScore}</span></div>
       <div class="row"><span class="label">Credit utilization</span><span class="value">${utilization}</span></div>
-      <div class="row"><span class="label">Investment readiness</span><span class="value">${investmentReady}</span></div>
       <div class="row"><span class="label">Submitted</span><span class="value">${submitted}</span></div>
       <div class="row"><span class="label">Source</span><span class="value">${source}</span></div>
       <p style="margin:24px 0 0;font-size:14px;">
@@ -255,7 +223,7 @@ serve(async (req) => {
       return new Response("No lead data", { status: 400 });
     }
 
-    const score: LeadScore = lead.score === "hot" || lead.score === "warm" ? lead.score : "cold";
+    const score: LeadScore = lead.score === "hot" ? "hot" : "cold";
 
     let leadEmailSent = false;
     if (score === "hot") {
@@ -263,12 +231,6 @@ serve(async (req) => {
         lead.email,
         "Your Funding Strategy Session Is the Next Step | Scale to Legacy",
         hotLeadEmail(lead),
-      );
-    } else if (score === "warm") {
-      leadEmailSent = await sendEmail(
-        lead.email,
-        "Your Credit Strategy Session Is the Next Step | Scale to Legacy",
-        warmLeadEmail(lead),
       );
     } else {
       leadEmailSent = await sendEmail(

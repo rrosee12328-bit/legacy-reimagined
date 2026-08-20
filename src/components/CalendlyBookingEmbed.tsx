@@ -11,21 +11,13 @@ declare global {
 
 const CALENDLY_BASE = "https://calendly.com/scaletolegacy/30min?back=1&month=2026-08";
 
-type BookingType = "funding" | "credit";
-
 interface CalendlyBookingEmbedProps {
-  type: BookingType;
   name: string;
   email: string;
   onScheduled: () => void;
 }
 
-export function CalendlyBookingEmbed({
-  type,
-  name,
-  email,
-  onScheduled,
-}: CalendlyBookingEmbedProps) {
+export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBookingEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasScheduledRef = useRef(false);
   const [ready, setReady] = useState(false);
@@ -86,8 +78,7 @@ export function CalendlyBookingEmbed({
 
       hasScheduledRef.current = true;
       window.fbq?.("track", "Schedule", {
-        content_name:
-          type === "credit" ? "Credit Strategy Session Booked" : "Funding Strategy Session Booked",
+        content_name: "Funding Strategy Session Booked",
         content_category: "Business Funding",
       });
       onScheduled();
@@ -95,7 +86,7 @@ export function CalendlyBookingEmbed({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onScheduled, type]);
+  }, [onScheduled]);
 
   return (
     <div>

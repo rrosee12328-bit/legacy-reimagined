@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { X, ArrowRight, Loader2, CheckCircle2, TrendingUp, BookOpen } from "lucide-react";
+import { X, ArrowRight, Loader2, CheckCircle2, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { CalendlyBookingEmbed } from "@/components/CalendlyBookingEmbed";
 
@@ -20,11 +20,10 @@ const BOOK_PATH = "/book";
 const EBOOK_URL = "https://www.scaletolegacy.com/the-key-to-scaling";
 
 function bookUrl(
-  type: "funding" | "credit",
   a: { full_name: string; email: string; phone?: string },
   meta?: { leadId?: string | null; score?: string | null },
 ) {
-  const p = new URLSearchParams({ type, name: a.full_name, email: a.email });
+  const p = new URLSearchParams({ type: "funding", name: a.full_name, email: a.email });
   if (a.phone) p.set("phone", a.phone);
   if (meta?.leadId) p.set("lead", meta.leadId);
   if (meta?.score) p.set("score", meta.score);
@@ -32,7 +31,7 @@ function bookUrl(
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Result = "funding" | "credit" | "disqualified" | null;
+type Result = "funding" | "disqualified" | null;
 
 interface Answers {
   full_name: string;
@@ -41,29 +40,17 @@ interface Answers {
   credit_score: string;
   utilization: string;
   llc_status: string;
-  investment_ready: string;
 }
 
 // ─── Routing logic ────────────────────────────────────────────────────────────
 function routeLead(a: Answers): Result {
-  const qualifiesForFunding = ["680_699", "700_749", "750_plus"].includes(a.credit_score);
-  const explicitlyInvestmentReady = a.investment_ready === "yes";
-
-  // Funding requires a 680+ score. Investment readiness does not block this path.
-  if (qualifiesForFunding) return "funding";
-
-  // Credit support is reserved only for people below 680 who explicitly select yes.
-  if (explicitlyInvestmentReady) return "credit";
-
-  // All other below-680 responses receive education-only next steps, not a calendar.
-  return "disqualified";
+  // Scale to Legacy funding sessions are reserved for applicants with a 680+ personal credit score.
+  return ["680_699", "700_749", "750_plus"].includes(a.credit_score) ? "funding" : "disqualified";
 }
 
 // ─── Supabase lead score ──────────────────────────────────────────────────────
 function scoreFromResult(r: Result) {
-  if (r === "funding") return "hot";
-  if (r === "credit") return "warm";
-  return "cold";
+  return r === "funding" ? "hot" : "cold";
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -85,7 +72,6 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
     credit_score: "",
     utilization: "",
     llc_status: "",
-    investment_ready: "",
   });
 
   if (!open) return null;
@@ -95,9 +81,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
     !!answers.credit_score,
     !!answers.utilization,
     !!answers.llc_status,
-    !!answers.investment_ready,
   ].filter(Boolean).length;
-  const progress = result ? 100 : Math.round((filled / 5) * 100);
+  const progress = result ? 100 : Math.round((filled / 4) * 100);
 
   function set(field: keyof Answers, value: string) {
     setAnswers((prev) => ({ ...prev, [field]: value }));
@@ -108,12 +93,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       setError("Please fill in your name, email and phone.");
       return;
     }
-    if (
-      !answers.credit_score ||
-      !answers.utilization ||
-      !answers.llc_status ||
-      !answers.investment_ready
-    ) {
+    if (!answers.credit_score || !answers.utilization || !answers.llc_status) {
       setError("Please answer all questions.");
       return;
     }
@@ -139,7 +119,6 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       credit_score: answers.credit_score,
       utilization: answers.utilization,
       llc_status: answers.llc_status,
-      investment_ready: answers.investment_ready,
       score,
       source: "qualify_form",
     });
@@ -157,12 +136,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
 
     // Fire Meta Pixel Lead + SubmitApplication events on form submit
     fbq("track", "Lead", {
-      content_name:
-        route === "funding"
-          ? "Business Funding"
-          : route === "credit"
-            ? "Credit Strategy"
-            : "Disqualified",
+      content_name: route === "funding" ? "Business Funding" : "Funding Readiness",
       content_category: "Business Funding",
       status: score,
     });
@@ -205,30 +179,12 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             bg="bg-primary/15"
             title="You may qualify for business funding."
             body="You’re on the final step. Please choose the available date and time that works best for you below to complete your funding strategy session booking."
-            bookingType="funding"
             name={answers.full_name}
             email={answers.email}
-            fallbackHref={bookUrl("funding", answers, { leadId, score: leadScore })}
+            fallbackHref={bookUrl(answers, { leadId, score: leadScore })}
             onScheduled={handleCalendarScheduled}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval and individual qualification. Results vary."
-          />
-        )}
-
-        {result === "credit" && (
-          <BookingResultScreen
-            icon={<TrendingUp className="h-8 w-8" />}
-            color="text-gold"
-            bg="bg-gold/15"
-            title="You can move into the credit strategy step."
-            body="You’re on the final step. Please choose the available date and time that works best for you below to complete your credit strategy session booking."
-            bookingType="credit"
-            name={answers.full_name}
-            email={answers.email}
-            fallbackHref={bookUrl("credit", answers, { leadId, score: leadScore })}
-            onScheduled={handleCalendarScheduled}
-            onClose={onClose}
-            disclaimer="Credit timelines and funding outcomes vary based on individual profiles and consistent action."
           />
         )}
 
@@ -237,9 +193,9 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             icon={<BookOpen className="h-8 w-8" />}
             color="text-muted-foreground"
             bg="bg-muted/30"
-            title="Not quite ready yet — here's a free resource."
-            body="Based on your answers, now may not be the right time to move forward. Grab our free guide to learn exactly what it takes to position yourself for business funding in the future."
-            cta="Get the Free Guide"
+            title="You are not eligible to book a funding call yet."
+            body="Scale to Legacy funding sessions are reserved for applicants with a personal credit score of 680 or higher. Focus on strengthening and maintaining your credit profile, then reapply when you meet that benchmark."
+            cta="Get the Free Funding Readiness Guide"
             href={EBOOK_URL}
             onClose={onClose}
           />
@@ -250,7 +206,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
           <>
             <p className="text-xs uppercase tracking-widest text-gold mb-1">Pre-Qualify</p>
             <h3 className="font-display text-2xl mb-6">
-              See if you qualify — takes about 60 seconds.
+              See if you meet the 680+ funding benchmark — takes about 60 seconds.
             </h3>
 
             <div className="grid gap-7">
@@ -349,30 +305,6 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                 </div>
               </div>
 
-              {/* Investment readiness */}
-              <div className="grid gap-3">
-                <QuestionLabel>
-                  If your credit score is below 680, an investment to improve your credit may be
-                  needed before you can pursue business funding. Are you prepared for that?
-                </QuestionLabel>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    { v: "yes", l: "Yes" },
-                    { v: "no", l: "No" },
-                  ].map((o) => (
-                    <OptionBtn
-                      key={o.v}
-                      label={o.l}
-                      selected={answers.investment_ready === o.v}
-                      onClick={() => {
-                        set("investment_ready", o.v);
-                        setError(null);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-
               <div className="grid gap-2">
                 <button
                   onClick={submit}
@@ -416,7 +348,6 @@ function BookingResultScreen({
   bg,
   title,
   body,
-  bookingType,
   name,
   email,
   fallbackHref,
@@ -429,7 +360,6 @@ function BookingResultScreen({
   bg: string;
   title: string;
   body: string;
-  bookingType: "funding" | "credit";
   name: string;
   email: string;
   fallbackHref: string;
@@ -444,12 +374,7 @@ function BookingResultScreen({
       <h3 className="mt-1 font-display text-2xl">{title}</h3>
       <p className="mt-3 text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">{body}</p>
       <div className="mt-6 text-left">
-        <CalendlyBookingEmbed
-          type={bookingType}
-          name={name}
-          email={email}
-          onScheduled={onScheduled}
-        />
+        <CalendlyBookingEmbed name={name} email={email} onScheduled={onScheduled} />
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
         Having trouble loading the calendar?{" "}
