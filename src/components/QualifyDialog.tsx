@@ -44,8 +44,10 @@ interface Answers {
 
 // ─── Routing logic ────────────────────────────────────────────────────────────
 function routeLead(a: Answers): Result {
-  // Scale to Legacy funding sessions are reserved for applicants with a 680+ personal credit score.
-  return ["680_699", "700_749", "750_plus"].includes(a.credit_score) ? "funding" : "disqualified";
+  // Initial funding sessions require a self-reported 680+ score and utilization below 30%.
+  const hasScoreBenchmark = ["680_699", "700_749", "750_plus"].includes(a.credit_score);
+  const hasUtilizationBenchmark = ["under_10", "10_29"].includes(a.utilization);
+  return hasScoreBenchmark && hasUtilizationBenchmark ? "funding" : "disqualified";
 }
 
 // ─── Supabase lead score ──────────────────────────────────────────────────────
@@ -193,8 +195,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             icon={<BookOpen className="h-8 w-8" />}
             color="text-muted-foreground"
             bg="bg-muted/30"
-            title="You are not eligible to book a funding call yet."
-            body="Scale to Legacy funding sessions are reserved for applicants with a personal credit score of 680 or higher. Focus on strengthening and maintaining your credit profile, then reapply when you meet that benchmark."
+            title="We cannot confirm the initial funding benchmarks yet."
+            body="Scale to Legacy funding sessions are reserved for applicants who report a personal credit score of 680 or higher and credit utilization below 30%. Focus on strengthening and maintaining your credit profile, then reapply when you meet both benchmarks."
             cta="Get the Free Funding Readiness Guide"
             href={EBOOK_URL}
             onClose={onClose}

@@ -32,3 +32,9 @@ enable_signup = true
 
 [edge_runtime]
 enabled = true
+
+[functions.trigger-scale-qualified-call]
+verify_jwt = false
+
+[functions.scale-retell-webhook]
+verify_jwt = false
