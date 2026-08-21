@@ -14,10 +14,18 @@ const CALENDLY_BASE = "https://calendly.com/scaletolegacy/30min?back=1&month=202
 interface CalendlyBookingEmbedProps {
   name: string;
   email: string;
+  leadId?: string | null;
+  bookingToken?: string | null;
   onScheduled: () => void;
 }
 
-export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBookingEmbedProps) {
+export function CalendlyBookingEmbed({
+  name,
+  email,
+  leadId,
+  bookingToken,
+  onScheduled,
+}: CalendlyBookingEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasScheduledRef = useRef(false);
   const [ready, setReady] = useState(false);
@@ -27,6 +35,10 @@ export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBooki
     url.searchParams.set("hide_gdpr_banner", "1");
     if (name) url.searchParams.set("name", name);
     if (email) url.searchParams.set("email", email);
+    if (leadId) {
+      url.searchParams.set("utm_source", "scaletolegacy");
+      url.searchParams.set("utm_content", leadId);
+    }
 
     function initialize() {
       if (!window.Calendly || !containerRef.current) return;
@@ -63,10 +75,10 @@ export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBooki
     document.body.appendChild(script);
 
     return () => script.removeEventListener("load", initialize);
-  }, [name, email]);
+  }, [name, email, leadId]);
 
   useEffect(() => {
-    function onMessage(event: MessageEvent) {
+    async function onMessage(event: MessageEvent) {
       if (
         hasScheduledRef.current ||
         typeof event.origin !== "string" ||
@@ -77,6 +89,20 @@ export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBooki
       }
 
       hasScheduledRef.current = true;
+      if (leadId && bookingToken) {
+        try {
+          await fetch(
+            "https://qlvsbsfddwuocfihsleq.supabase.co/functions/v1/confirm-scale-calendar-booking",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ leadId, token: bookingToken }),
+            },
+          );
+        } catch (error) {
+          console.error("Unable to save Calendly booking confirmation", error);
+        }
+      }
       window.fbq?.("track", "Schedule", {
         content_name: "Funding Strategy Session Booked",
         content_category: "Business Funding",
@@ -86,7 +112,7 @@ export function CalendlyBookingEmbed({ name, email, onScheduled }: CalendlyBooki
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onScheduled]);
+  }, [bookingToken, leadId, onScheduled]);
 
   return (
     <div>

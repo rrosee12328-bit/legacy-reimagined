@@ -21,12 +21,13 @@ const EBOOK_URL = "https://www.scaletolegacy.com/the-key-to-scaling";
 
 function bookUrl(
   a: { full_name: string; email: string; phone?: string },
-  meta?: { leadId?: string | null; score?: string | null },
+  meta?: { leadId?: string | null; score?: string | null; bookingToken?: string | null },
 ) {
   const p = new URLSearchParams({ type: "funding", name: a.full_name, email: a.email });
   if (a.phone) p.set("phone", a.phone);
   if (meta?.leadId) p.set("lead", meta.leadId);
   if (meta?.score) p.set("score", meta.score);
+  if (meta?.bookingToken) p.set("booking_token", meta.bookingToken);
   return `${BOOK_PATH}?${p.toString()}`;
 }
 
@@ -62,6 +63,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [error, setError] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
   const [leadScore, setScore] = useState<string | null>(null);
+  const [bookingToken, setBookingToken] = useState<string | null>(null);
 
   const handleCalendarScheduled = useCallback(() => {
     window.location.assign("/thank-you");
@@ -111,6 +113,10 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const newBookingToken =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const { error: dbErr } = await supabase.from("leads").insert({
       id: newLeadId,
@@ -123,11 +129,14 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       llc_status: answers.llc_status,
       score,
       source: "qualify_form",
+      sms_contact_consent: true,
+      calendar_confirmation_token: newBookingToken,
     });
 
     setSub(false);
     setScore(score);
     setLeadId(newLeadId);
+    setBookingToken(newBookingToken);
 
     if (dbErr) {
       // Non-blocking — still show result even if DB write fails
@@ -183,7 +192,9 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             body="You’re on the final step. Please choose the available date and time that works best for you below to complete your funding strategy session booking."
             name={answers.full_name}
             email={answers.email}
-            fallbackHref={bookUrl(answers, { leadId, score: leadScore })}
+            leadId={leadId}
+            bookingToken={bookingToken}
+            fallbackHref={bookUrl(answers, { leadId, score: leadScore, bookingToken })}
             onScheduled={handleCalendarScheduled}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval and individual qualification. Results vary."
@@ -324,8 +335,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                   )}
                 </button>
                 <p className="text-xs text-muted-foreground text-center">
-                  By submitting, you agree to be contacted about funding options. Funding subject to
-                  credit approval.
+                  By submitting, you agree to receive calls and text messages about your funding
+                  application. Reply STOP to opt out. Funding is subject to credit approval.
                 </p>
               </div>
             </div>
@@ -352,6 +363,8 @@ function BookingResultScreen({
   body,
   name,
   email,
+  leadId,
+  bookingToken,
   fallbackHref,
   onScheduled,
   onClose,
@@ -364,6 +377,8 @@ function BookingResultScreen({
   body: string;
   name: string;
   email: string;
+  leadId?: string | null;
+  bookingToken?: string | null;
   fallbackHref: string;
   onScheduled: () => void;
   onClose: () => void;
@@ -376,7 +391,13 @@ function BookingResultScreen({
       <h3 className="mt-1 font-display text-2xl">{title}</h3>
       <p className="mt-3 text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">{body}</p>
       <div className="mt-6 text-left">
-        <CalendlyBookingEmbed name={name} email={email} onScheduled={onScheduled} />
+        <CalendlyBookingEmbed
+          name={name}
+          email={email}
+          leadId={leadId}
+          bookingToken={bookingToken}
+          onScheduled={onScheduled}
+        />
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
         Having trouble loading the calendar?{" "}

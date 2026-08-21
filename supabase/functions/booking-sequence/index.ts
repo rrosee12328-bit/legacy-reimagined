@@ -159,6 +159,14 @@ serve(async (req) => {
     const name = invitee.name ?? "there";
     const email = invitee.email ?? "";
     const phone = invitee.text_reminder_number ?? null;
+    const rawTrackedLeadId = invitee.tracking?.utm_content ?? null;
+    const trackedLeadId =
+      typeof rawTrackedLeadId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        rawTrackedLeadId,
+      )
+        ? rawTrackedLeadId
+        : null;
     const startTime = new Date(scheduledEvent.start_time ?? scheduledEvent.start ?? new Date());
     const endTime = scheduledEvent.end_time ? new Date(scheduledEvent.end_time) : null;
     const eventName = scheduledEvent.name ?? "Strategy Session";
@@ -179,11 +187,23 @@ serve(async (req) => {
         event_end_time: endTime?.toISOString() ?? null,
         event_name: eventName,
         status: "confirmed",
+        lead_id: trackedLeadId,
       }, { onConflict: "calendly_event_id" })
       .select()
       .single();
 
     if (bookingError) throw new Error(`Booking insert failed: ${bookingError.message}`);
+
+    if (trackedLeadId) {
+      const { error: leadError } = await supabase
+        .from("leads")
+        .update({
+          calendar_booked_at: new Date().toISOString(),
+          calendly_event_id: calendlyEventId,
+        })
+        .eq("id", trackedLeadId);
+      if (leadError) throw new Error(`Lead booking update failed: ${leadError.message}`);
+    }
 
     const bookingId = booking.id;
     const now = new Date();

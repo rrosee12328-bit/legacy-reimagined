@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
 import {
   BarChart,
   Bar,
@@ -52,7 +51,20 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
+const CRM_ENDPOINT = "https://qlvsbsfddwuocfihsleq.supabase.co/functions/v1/scale-crm-leads";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface CallEvidence {
+  retell_call_id: string;
+  transcript?: string;
+  recording_url?: string;
+  recording_multi_channel_url?: string;
+  duration_ms?: number;
+  disconnection_reason?: string;
+  call_summary?: string;
+  captured_at?: string;
+}
+
 interface Lead {
   id: string;
   created_at: string;
@@ -75,13 +87,13 @@ interface Lead {
   pipeline_stage?: string;
   notes?: string;
   source?: string;
+  outbound_call_status?: string;
+  call_evidence?: CallEvidence | null;
 }
 
 type View = "dashboard" | "leads" | "analytics";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const ADMIN_PASS = "102026";
-
 const STATUS_OPTIONS = [
   "New",
   "Contacted",
@@ -164,35 +176,49 @@ function fmtDate(iso: string) {
   });
 }
 
+function fmtDuration(ms?: number) {
+  if (!ms || ms < 0) return "—";
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function AdminPage() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem("stl_admin") === "1");
-  if (!authed)
+  const [crmPassword, setCrmPassword] = useState(() =>
+    sessionStorage.getItem("stl_admin_password"),
+  );
+  if (!crmPassword)
     return (
       <LoginScreen
-        onAuth={() => {
-          sessionStorage.setItem("stl_admin", "1");
-          setAuthed(true);
+        onAuth={(password) => {
+          sessionStorage.setItem("stl_admin_password", password);
+          setCrmPassword(password);
         }}
       />
     );
   return (
     <CRMDashboard
+      crmPassword={crmPassword}
       onLogout={() => {
-        sessionStorage.removeItem("stl_admin");
-        setAuthed(false);
+        sessionStorage.removeItem("stl_admin_password");
+        setCrmPassword(null);
       }}
     />
   );
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
-function LoginScreen({ onAuth }: { onAuth: () => void }) {
+function LoginScreen({ onAuth }: { onAuth: (password: string) => void }) {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState(false);
-  function attempt(e: React.FormEvent) {
+  async function attempt(e: React.FormEvent) {
     e.preventDefault();
-    if (pass === ADMIN_PASS) onAuth();
+    const response = await fetch(CRM_ENDPOINT, {
+      headers: { "x-scale-crm-password": pass },
+    });
+    if (response.ok) onAuth(pass);
     else {
       setErr(true);
       setPass("");
@@ -229,7 +255,7 @@ function LoginScreen({ onAuth }: { onAuth: () => void }) {
 }
 
 // ─── CRM Dashboard ────────────────────────────────────────────────────────────
-function CRMDashboard({ onLogout }: { onLogout: () => void }) {
+function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout: () => void }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>("dashboard");
@@ -243,33 +269,44 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setLeads((data as Lead[]) ?? []);
+    const response = await fetch(CRM_ENDPOINT, {
+      headers: { "x-scale-crm-password": crmPassword },
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      setLeads((payload.leads as Lead[]) ?? []);
+    } else {
+      setLeads([]);
+    }
     setLoading(false);
-  }, []);
+  }, [crmPassword]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   async function saveLead(updated: Lead) {
-    const { error } = await supabase
-      .from("leads")
-      .update({
-        status: updated.status,
-        pipeline_stage: updated.pipeline_stage,
-        notes: updated.notes,
-        funding_amount_secured: updated.funding_amount_secured,
-        funded_at: updated.funded_at || null,
-        follow_up_date: updated.follow_up_date || null,
-        last_contacted_at: updated.last_contacted_at || null,
-        assigned_to: updated.assigned_to,
-      })
-      .eq("id", updated.id);
-    if (!error) {
+    const response = await fetch(CRM_ENDPOINT, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-scale-crm-password": crmPassword,
+      },
+      body: JSON.stringify({
+        id: updated.id,
+        updates: {
+          status: updated.status,
+          pipeline_stage: updated.pipeline_stage,
+          notes: updated.notes,
+          funding_amount_secured: updated.funding_amount_secured,
+          funded_at: updated.funded_at || null,
+          follow_up_date: updated.follow_up_date || null,
+          last_contacted_at: updated.last_contacted_at || null,
+          assigned_to: updated.assigned_to,
+        },
+      }),
+    });
+    if (response.ok) {
       setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       setEditLead(null);
     }
@@ -830,6 +867,64 @@ function CRMDashboard({ onLogout }: { onLogout: () => void }) {
                             Notes
                           </p>
                           <p className="text-sm">{lead.notes}</p>
+                        </div>
+                      )}
+                      {(lead.call_evidence?.transcript || lead.call_evidence?.recording_url) && (
+                        <div className="mb-4 rounded-xl bg-background border border-border p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                              Outbound Qualification Call
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {lead.call_evidence?.captured_at
+                                ? `Saved ${fmtDateTime(lead.call_evidence.captured_at)}`
+                                : "Call evidence saved"}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-3 text-sm">
+                            <Detail label="Disposition" value={lead.outbound_call_status ?? "—"} />
+                            <Detail
+                              label="Duration"
+                              value={fmtDuration(lead.call_evidence?.duration_ms)}
+                            />
+                            <Detail
+                              label="Call Ended"
+                              value={
+                                lead.call_evidence?.disconnection_reason?.replace(/_/g, " ") ?? "—"
+                              }
+                            />
+                          </div>
+                          {lead.call_evidence?.call_summary && (
+                            <p className="mt-3 text-sm text-muted-foreground">
+                              {lead.call_evidence.call_summary}
+                            </p>
+                          )}
+                          {lead.call_evidence?.recording_url && (
+                            <div className="mt-4 grid gap-2">
+                              <audio controls preload="metadata" className="w-full">
+                                <source src={lead.call_evidence.recording_url} />
+                                Your browser does not support call recording playback.
+                              </audio>
+                              <a
+                                href={lead.call_evidence.recording_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline"
+                              >
+                                Open call recording in a new tab
+                              </a>
+                            </div>
+                          )}
+                          {lead.call_evidence?.transcript && (
+                            <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                                Call Transcript
+                              </p>
+                              <p className="max-h-72 overflow-y-auto whitespace-pre-wrap pr-1 text-sm leading-relaxed">
+                                {lead.call_evidence.transcript}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">

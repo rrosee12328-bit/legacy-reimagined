@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.scale-retell-webhook]
 verify_jwt = false
+
+[functions.send-scale-experian-sms]
+verify_jwt = false
+
+[functions.scale-crm-leads]
+verify_jwt = false
+
+[functions.scale-sms-opt-out]
+verify_jwt = false
+
+[functions.confirm-scale-calendar-booking]
+verify_jwt = false

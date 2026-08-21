@@ -39,6 +39,8 @@ function BookPage() {
     name: "",
     email: "",
     score: "",
+    leadId: "",
+    bookingToken: "",
   });
 
   useEffect(() => {
@@ -47,6 +49,8 @@ function BookPage() {
       name: search.get("name") ?? "",
       email: search.get("email") ?? "",
       score: search.get("score") ?? "",
+      leadId: search.get("lead") ?? "",
+      bookingToken: search.get("booking_token") ?? "",
     });
   }, []);
 
@@ -109,6 +113,8 @@ function BookPage() {
         <CalendlyBookingEmbed
           name={params.name}
           email={params.email}
+          leadId={params.leadId}
+          bookingToken={params.bookingToken}
           onScheduled={handleScheduled}
         />
       </section>
