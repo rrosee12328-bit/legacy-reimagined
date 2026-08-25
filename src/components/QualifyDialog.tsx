@@ -41,6 +41,7 @@ interface Answers {
   credit_score: string;
   utilization: string;
   llc_status: string;
+  contact_consent: boolean;
 }
 
 // ─── Routing logic ────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
     credit_score: "",
     utilization: "",
     llc_status: "",
+    contact_consent: false,
   });
 
   if (!open) return null;
@@ -88,7 +90,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
   ].filter(Boolean).length;
   const progress = result ? 100 : Math.round((filled / 4) * 100);
 
-  function set(field: keyof Answers, value: string) {
+  function set<K extends keyof Answers>(field: K, value: Answers[K]) {
     setAnswers((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -99,6 +101,10 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
     }
     if (!answers.credit_score || !answers.utilization || !answers.llc_status) {
       setError("Please answer all questions.");
+      return;
+    }
+    if (!answers.contact_consent) {
+      setError("Please authorize the call and text follow-up before submitting.");
       return;
     }
     setError(null);
@@ -129,7 +135,11 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       llc_status: answers.llc_status,
       score,
       source: "qualify_form",
-      sms_contact_consent: true,
+      sms_contact_consent: answers.contact_consent,
+      contact_consent_at: new Date().toISOString(),
+      contact_consent_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      contact_consent_text:
+        "v1: Scale to Legacy automated/AI-generated calls and texts; consent not a condition of purchase; STOP opt-out; message/data rates may apply.",
       calendar_confirmation_token: newBookingToken,
     });
 
@@ -318,7 +328,25 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                 </div>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-3">
+                <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-4 text-left">
+                  <input
+                    type="checkbox"
+                    checked={answers.contact_consent}
+                    onChange={(event) => {
+                      set("contact_consent", event.target.checked);
+                      setError(null);
+                    }}
+                    className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    By checking this box and clicking “See My Results,” I provide my electronic
+                    signature and agree that Scale to Legacy may call and text the number I entered
+                    about my funding application, including through automated technology and an
+                    artificial or AI-generated voice. Consent is not a condition of purchasing any
+                    goods or services. Message and data rates may apply. Reply STOP to opt out.
+                  </span>
+                </label>
                 <button
                   onClick={submit}
                   disabled={submitting}
@@ -335,8 +363,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                   )}
                 </button>
                 <p className="text-xs text-muted-foreground text-center">
-                  By submitting, you agree to receive calls and text messages about your funding
-                  application. Reply STOP to opt out. Funding is subject to credit approval.
+                  Funding is subject to credit approval and individual qualification.
                 </p>
               </div>
             </div>

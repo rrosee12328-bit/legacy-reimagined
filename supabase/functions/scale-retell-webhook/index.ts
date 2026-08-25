@@ -133,13 +133,34 @@ Deno.serve(async (request) => {
 
   try {
     const payload = JSON.parse(rawBody);
-    if (payload.event !== "call_analyzed") {
+    if (!["call_ended", "call_analyzed"].includes(payload.event)) {
       return new Response(null, { status: 204 });
     }
 
     const call = payload.call ?? {};
     const leadId = call.metadata?.lead_id;
     if (!leadId) return new Response(null, { status: 204 });
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    if (call.disconnection_reason === "dial_no_answer") {
+      const { error: unansweredError } = await supabase
+        .from("leads")
+        .update({
+          outbound_call_status: "unanswered",
+          qualification_status: "unanswered",
+          retell_call_id: call.call_id ?? null,
+          outbound_call_completed_at: new Date().toISOString(),
+        })
+        .eq("id", leadId);
+      if (unansweredError) throw unansweredError;
+      if (payload.event === "call_ended") return new Response(null, { status: 204 });
+    }
+
+    if (payload.event !== "call_analyzed") return new Response(null, { status: 204 });
 
     // Retell places agent-level custom analysis fields alongside the built-in
     // call-analysis fields. Keep the nested fallback for backward compatibility.
@@ -148,12 +169,10 @@ Deno.serve(async (request) => {
       analysis.custom_analysis_data?.scale_qualification ??
       analysis.custom_analysis_data ??
       analysis;
-    const qualificationStatus = outcome.qualification_status ?? "unconfirmed";
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const qualificationStatus =
+      call.disconnection_reason === "dial_no_answer"
+        ? "unanswered"
+        : (outcome.qualification_status ?? "unconfirmed");
 
     const update = {
       outbound_call_status: qualificationStatus,

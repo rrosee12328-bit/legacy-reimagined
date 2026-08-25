@@ -21,6 +21,21 @@ function toE164Phone(value: string) {
   return trimmed;
 }
 
+function isPermittedCallingHour(timeZone: string) {
+  try {
+    const hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hour: "numeric",
+        hourCycle: "h23",
+      }).format(new Date()),
+    );
+    return hour >= 8 && hour < 21;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return response(405, { error: "Method not allowed" });
@@ -36,6 +51,8 @@ Deno.serve(async (request) => {
     const lead = payload.record ?? payload;
     const qualifies =
       lead?.source === "qualify_form" &&
+      lead?.sms_contact_consent === true &&
+      Boolean(lead?.contact_consent_at) &&
       qualifyingScores.has(lead?.credit_score) &&
       qualifyingUtilization.has(lead?.utilization);
 
@@ -50,6 +67,22 @@ Deno.serve(async (request) => {
     const toNumber = toE164Phone(String(lead.phone ?? ""));
     if (!leadId || !toNumber) {
       return response(400, { error: "Missing lead ID or phone number" });
+    }
+
+    const leadTimeZone = String(lead.contact_consent_timezone ?? "");
+    if (!leadTimeZone || !isPermittedCallingHour(leadTimeZone)) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      await supabase
+        .from("leads")
+        .update({ outbound_call_status: "deferred_outside_calling_hours" })
+        .eq("id", leadId);
+      return response(200, {
+        action: "deferred",
+        reason: "Outside permitted calling hours in the lead's time zone",
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -99,6 +132,9 @@ Deno.serve(async (request) => {
           lead_id: leadId,
           lead_full_name: String(lead.full_name ?? "there"),
           lead_email: String(lead.email ?? ""),
+          lead_phone: toNumber,
+          lead_timezone: leadTimeZone,
+          calendly_booking_url: "https://calendly.com/scaletolegacy/30min",
           submitted_credit_score: String(lead.credit_score ?? ""),
           submitted_utilization: String(lead.utilization ?? ""),
           submitted_llc_status: String(lead.llc_status ?? ""),

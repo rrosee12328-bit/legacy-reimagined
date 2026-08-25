@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.confirm-scale-calendar-booking]
 verify_jwt = false
+
+[functions.scale-calendly-scheduling]
+verify_jwt = false
