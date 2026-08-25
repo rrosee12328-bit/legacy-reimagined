@@ -46,11 +46,34 @@ Deno.serve(async (request) => {
         : { data: [], error: null };
       if (evidenceError) throw evidenceError;
       const evidenceByLead = new Map((evidence ?? []).map((item) => [item.lead_id, item]));
+      const { data: screenshots, error: screenshotsError } = leadIds.length
+        ? await supabase
+            .from("lead_credit_evidence")
+            .select("id, lead_id, storage_path, content_type, received_at")
+            .in("lead_id", leadIds)
+            .order("received_at", { ascending: false })
+        : { data: [], error: null };
+      if (screenshotsError) throw screenshotsError;
+      const screenshotPaths = (screenshots ?? []).map((item) => item.storage_path);
+      const { data: signedScreenshots, error: signedError } = screenshotPaths.length
+        ? await supabase.storage.from("lead-credit-screenshots").createSignedUrls(screenshotPaths, 3600)
+        : { data: [], error: null };
+      if (signedError) throw signedError;
+      const signedUrlByPath = new Map(
+        (signedScreenshots ?? []).map((item, index) => [screenshotPaths[index], item.signedUrl]),
+      );
+      const screenshotsByLead = new Map<string, Array<Record<string, unknown>>>();
+      for (const item of screenshots ?? []) {
+        const items = screenshotsByLead.get(item.lead_id) ?? [];
+        items.push({ ...item, signed_url: signedUrlByPath.get(item.storage_path) ?? null });
+        screenshotsByLead.set(item.lead_id, items);
+      }
       return Response.json(
         {
           leads: (leads ?? []).map((lead) => ({
             ...lead,
             call_evidence: evidenceByLead.get(lead.id) ?? null,
+            credit_screenshots: screenshotsByLead.get(lead.id) ?? [],
           })),
         },
         { headers: corsHeaders },

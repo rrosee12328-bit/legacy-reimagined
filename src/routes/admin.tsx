@@ -44,6 +44,7 @@ import {
   Bell,
   Edit3,
   Save,
+  Image,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -63,6 +64,13 @@ interface CallEvidence {
   disconnection_reason?: string;
   call_summary?: string;
   captured_at?: string;
+}
+
+interface CreditScreenshot {
+  id: string;
+  content_type: string;
+  received_at: string;
+  signed_url?: string | null;
 }
 
 interface Lead {
@@ -93,6 +101,7 @@ interface Lead {
   contact_consent_timezone?: string;
   contact_consent_text?: string;
   call_evidence?: CallEvidence | null;
+  credit_screenshots?: CreditScreenshot[];
 }
 
 type View = "dashboard" | "leads" | "analytics";
@@ -945,6 +954,40 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                               </p>
                             </div>
                           )}
+                        </div>
+                      )}
+                      {!!lead.credit_screenshots?.length && (
+                        <div className="mb-4 rounded-xl bg-background border border-border p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                              <Image className="h-4 w-4" /> Credit Score Screenshots
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {lead.credit_screenshots.length} received
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {lead.credit_screenshots.map((screenshot) =>
+                              screenshot.signed_url ? (
+                                <a
+                                  key={screenshot.id}
+                                  href={screenshot.signed_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group overflow-hidden rounded-xl border border-border bg-muted/20"
+                                >
+                                  <img
+                                    src={screenshot.signed_url}
+                                    alt="Credit score screenshot"
+                                    className="h-48 w-full object-contain transition group-hover:scale-[1.02]"
+                                  />
+                                  <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                                    Received {fmtDateTime(screenshot.received_at)}
+                                  </p>
+                                </a>
+                              ) : null,
+                            )}
+                          </div>
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
