@@ -24,7 +24,9 @@ function bytesToBase64(bytes: ArrayBuffer) {
 
 async function verifyTwilioSignature(request: Request, params: URLSearchParams, authToken: string) {
   const signature = request.headers.get("x-twilio-signature") ?? "";
-  let signedValue = request.url;
+  // Edge runtimes may expose an internal request URL. Twilio signs the exact
+  // public webhook URL configured in the Messaging Service.
+  let signedValue = `${Deno.env.get("SUPABASE_URL")}/functions/v1/scale-inbound-mms`;
   for (const [key, value] of [...params.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     signedValue += key + value;
   }
