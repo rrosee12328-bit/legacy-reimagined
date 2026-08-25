@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const CALENDLY_BASE = "https://calendly.com/scaletolegacy/30min?back=1&month=2026-08";
+const CALENDLY_BASE = "https://calendly.com/scaletolegacy/30min";
 
 interface CalendlyBookingEmbedProps {
   name: string;

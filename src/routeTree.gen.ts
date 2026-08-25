@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BookRouteImport } from './routes/book'
+import { Route as NotQualifiedRouteImport } from './routes/not-qualified'
 import { Route as ThankYouRouteImport } from './routes/thank-you'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const BookRoute = BookRouteImport.update({
   path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotQualifiedRoute = NotQualifiedRouteImport.update({
+  id: '/not-qualified',
+  path: '/not-qualified',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ThankYouRoute = ThankYouRouteImport.update({
   id: '/thank-you',
   path: '/thank-you',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/book': typeof BookRoute
+  '/not-qualified': typeof NotQualifiedRoute
   '/thank-you': typeof ThankYouRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/book': typeof BookRoute
+  '/not-qualified': typeof NotQualifiedRoute
   '/thank-you': typeof ThankYouRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/book': typeof BookRoute
+  '/not-qualified': typeof NotQualifiedRoute
   '/thank-you': typeof ThankYouRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/book' | '/thank-you'
+  fullPaths: '/' | '/admin' | '/book' | '/not-qualified' | '/thank-you'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/book' | '/thank-you'
-  id: '__root__' | '/' | '/admin' | '/book' | '/thank-you'
+  to: '/' | '/admin' | '/book' | '/not-qualified' | '/thank-you'
+  id: '__root__' | '/' | '/admin' | '/book' | '/not-qualified' | '/thank-you'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   BookRoute: typeof BookRoute
+  NotQualifiedRoute: typeof NotQualifiedRoute
   ThankYouRoute: typeof ThankYouRoute
 }
 
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/not-qualified': {
+      id: '/not-qualified'
+      path: '/not-qualified'
+      fullPath: '/not-qualified'
+      preLoaderRoute: typeof NotQualifiedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/thank-you': {
       id: '/thank-you'
       path: '/thank-you'
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   BookRoute: BookRoute,
+  NotQualifiedRoute: NotQualifiedRoute,
   ThankYouRoute: ThankYouRoute,
 }
 export const routeTree = rootRouteImport

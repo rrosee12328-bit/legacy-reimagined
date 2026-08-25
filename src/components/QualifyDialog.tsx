@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { X, ArrowRight, Loader2, CheckCircle2, BookOpen } from "lucide-react";
+import { X, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { CalendlyBookingEmbed } from "@/components/CalendlyBookingEmbed";
 
@@ -17,7 +17,6 @@ function fbq(event: string, name: string, params?: Record<string, unknown>) {
 
 // ─── Booking links ────────────────────────────────────────────────────────────
 const BOOK_PATH = "/book";
-const EBOOK_URL = "https://www.scaletolegacy.com/the-key-to-scaling";
 
 function bookUrl(
   a: { full_name: string; email: string; phone?: string },
@@ -153,11 +152,16 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
       console.error("Supabase error:", dbErr.message);
     }
 
+    if (route === "disqualified") {
+      window.location.assign("/not-qualified");
+      return;
+    }
+
     setResult(route);
 
-    // Fire Meta Pixel Lead + SubmitApplication events on form submit
+    // Only qualified applicants are conversion signals for Meta optimization.
     fbq("track", "Lead", {
-      content_name: route === "funding" ? "Business Funding" : "Funding Readiness",
+      content_name: "Business Funding",
       content_category: "Business Funding",
       status: score,
     });
@@ -208,19 +212,6 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             onScheduled={handleCalendarScheduled}
             onClose={onClose}
             disclaimer="Funding is subject to credit approval and individual qualification. Results vary."
-          />
-        )}
-
-        {result === "disqualified" && (
-          <ResultScreen
-            icon={<BookOpen className="h-8 w-8" />}
-            color="text-muted-foreground"
-            bg="bg-muted/30"
-            title="We cannot confirm the initial funding benchmarks yet."
-            body="Scale to Legacy funding sessions are reserved for applicants who report a personal credit score of 680 or higher and credit utilization below 30%. Focus on strengthening and maintaining your credit profile, then reapply when you meet both benchmarks."
-            cta="Get the Free Funding Readiness Guide"
-            href={EBOOK_URL}
-            onClose={onClose}
           />
         )}
 
@@ -417,6 +408,13 @@ function BookingResultScreen({
       <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-gold">Final Step</p>
       <h3 className="mt-1 font-display text-2xl">{title}</h3>
       <p className="mt-3 text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">{body}</p>
+      <div className="mt-5 rounded-xl border-2 border-primary bg-primary/10 px-4 py-3 text-left">
+        <p className="font-semibold text-sm">Your application is not finished yet.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Select a date, choose a time, and submit the Calendly form below. You are booked only
+          when you see the confirmation screen and receive the calendar invitation.
+        </p>
+      </div>
       <div className="mt-6 text-left">
         <CalendlyBookingEmbed
           name={name}
