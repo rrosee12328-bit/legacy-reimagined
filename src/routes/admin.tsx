@@ -88,6 +88,10 @@ interface Lead {
   notes?: string;
   source?: string;
   outbound_call_status?: string;
+  sms_contact_consent?: boolean;
+  contact_consent_at?: string;
+  contact_consent_timezone?: string;
+  contact_consent_text?: string;
   call_evidence?: CallEvidence | null;
 }
 
@@ -843,6 +847,22 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                         <Detail
                           label="Last Contacted"
                           value={lead.last_contacted_at ? fmtDateTime(lead.last_contacted_at) : "—"}
+                        />
+                        <Detail
+                          label="Call/Text Consent"
+                          value={lead.sms_contact_consent ? "Granted" : "Not granted"}
+                        />
+                        <Detail
+                          label="Consent Recorded"
+                          value={
+                            lead.contact_consent_at
+                              ? `${fmtDateTime(lead.contact_consent_at)}${
+                                  lead.contact_consent_timezone
+                                    ? ` (${lead.contact_consent_timezone})`
+                                    : ""
+                                }`
+                              : "—"
+                          }
                         />
                         {lead.status === "Funded" && (
                           <>

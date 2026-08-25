@@ -349,7 +349,7 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                 </label>
                 <button
                   onClick={submit}
-                  disabled={submitting}
+                  disabled={submitting || !answers.contact_consent}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-3.5 font-medium shadow-glow hover:brightness-110 transition disabled:opacity-60"
                 >
                   {submitting ? (
