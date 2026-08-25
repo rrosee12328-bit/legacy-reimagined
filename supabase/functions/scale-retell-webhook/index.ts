@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const encoder = new TextEncoder();
 const FOLLOW_UP_MESSAGE =
-  "Scale to Legacy: Thanks for speaking with us. Book your funding strategy session here: https://calendly.com/scaletolegacy/30min. To verify the score you reported, please get a current credit report from Experian: https://www.experian.com. Reply STOP to opt out.";
+  "Scale to Legacy: Thanks for speaking with us. Book your funding strategy session here: https://calendly.com/scaletolegacy/30min. Please get your current score from Experian: https://www.experian.com. Once visible, take a screenshot and reply to this text with it so our team can review it. Reply STOP to opt out.";
 
 function hex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes))

@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const encoder = new TextEncoder();
 const EXPERIAN_MESSAGE =
-  "Scale to Legacy: To verify the score you reported before your funding session, please obtain a current credit report from Experian: https://www.experian.com. Reply STOP to opt out.";
+  "Scale to Legacy: Please obtain your current credit score from Experian: https://www.experian.com. Once you can see the score, take a screenshot and reply to this text with the screenshot so our team can review it before your funding session. Reply STOP to opt out.";
 
 function hex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes))
@@ -67,8 +67,13 @@ Deno.serve(async (request) => {
 
   const rawBody = await request.text();
   const retellKey = Deno.env.get("RETELL_API_KEY");
+  const toolSecret = Deno.env.get("RETELL_TOOL_SECRET");
   const signature = request.headers.get("x-retell-signature") ?? "";
-  if (!retellKey || !(await verifySignature(rawBody, signature, retellKey))) {
+  const toolAuthorized =
+    Boolean(toolSecret) && request.headers.get("x-scale-tool-secret") === toolSecret;
+  const signatureAuthorized =
+    Boolean(retellKey) && (await verifySignature(rawBody, signature, retellKey!));
+  if (!retellKey || (!toolAuthorized && !signatureAuthorized)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
