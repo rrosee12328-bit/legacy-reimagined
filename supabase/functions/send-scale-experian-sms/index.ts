@@ -44,6 +44,7 @@ async function sendTwilioSms(to: string, body: string) {
     To: to,
     From: "+16153074302",
     Body: body,
+    StatusCallback: `${Deno.env.get("SUPABASE_URL")}/functions/v1/scale-twilio-message-status`,
   });
   const authorization = `Basic ${btoa(`${accountSid}:${authToken}`)}`;
   const response = await fetch(
@@ -59,7 +60,7 @@ async function sendTwilioSms(to: string, body: string) {
   );
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(JSON.stringify(payload));
-  return String(payload.sid ?? "");
+  return { sid: String(payload.sid ?? ""), status: String(payload.status ?? "queued") };
 }
 
 Deno.serve(async (request) => {
@@ -99,12 +100,29 @@ Deno.serve(async (request) => {
       return Response.json({ sent: true, duplicate: true });
     }
 
-    const sid = await sendTwilioSms(toE164Phone(lead.phone), EXPERIAN_MESSAGE);
+    const toPhone = toE164Phone(lead.phone);
+    const message = await sendTwilioSms(toPhone, EXPERIAN_MESSAGE);
+    const { error: communicationError } = await supabase.from("lead_communications").upsert(
+      {
+        lead_id: leadId,
+        twilio_message_sid: message.sid,
+        direction: "outbound",
+        channel: "sms",
+        from_phone: "+16153074302",
+        to_phone: toPhone,
+        body: EXPERIAN_MESSAGE,
+        status: message.status,
+        matching_status: "matched",
+        occurred_at: new Date().toISOString(),
+      },
+      { onConflict: "twilio_message_sid" },
+    );
+    if (communicationError) throw communicationError;
     const { error: updateError } = await supabase
       .from("leads")
       .update({
         midcall_experian_sms_sent_at: new Date().toISOString(),
-        midcall_experian_sms_sid: sid,
+        midcall_experian_sms_sid: message.sid,
       })
       .eq("id", leadId);
     if (updateError) throw updateError;

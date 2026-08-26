@@ -45,6 +45,9 @@ import {
   Edit3,
   Save,
   Image,
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -64,6 +67,34 @@ interface CallEvidence {
   disconnection_reason?: string;
   call_summary?: string;
   captured_at?: string;
+  analysis_data?: Record<string, unknown>;
+}
+
+interface Communication {
+  id: string;
+  twilio_message_sid: string;
+  direction: "inbound" | "outbound";
+  channel: "sms" | "mms";
+  body: string;
+  status: string;
+  occurred_at: string;
+  media?: Array<Record<string, unknown>>;
+  error_message?: string | null;
+}
+
+interface AnswerVerification {
+  verified_value: unknown;
+  reviewer: string;
+  note?: string | null;
+  reviewed_at: string;
+}
+
+interface AnswerComparison {
+  field: string;
+  form_value: unknown;
+  call_value: unknown;
+  status: "match" | "conflict" | "not_confirmed";
+  verification?: AnswerVerification | null;
 }
 
 interface CreditScreenshot {
@@ -71,6 +102,7 @@ interface CreditScreenshot {
   content_type: string;
   received_at: string;
   signed_url?: string | null;
+  twilio_message_sid?: string;
 }
 
 interface Lead {
@@ -101,6 +133,9 @@ interface Lead {
   contact_consent_timezone?: string;
   contact_consent_text?: string;
   call_evidence?: CallEvidence | null;
+  call_history?: CallEvidence[];
+  communications?: Communication[];
+  answer_comparisons?: AnswerComparison[];
   credit_screenshots?: CreditScreenshot[];
 }
 
@@ -279,6 +314,12 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
   const [sortAsc, setSA] = useState(false);
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [reviewer, setReviewer] = useState(() =>
+    typeof window === "undefined"
+      ? "CRM Admin"
+      : (localStorage.getItem("scale-crm-reviewer") ?? "CRM Admin"),
+  );
+  const [verificationSaving, setVerificationSaving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -323,6 +364,35 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
       setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       setEditLead(null);
     }
+  }
+
+  async function resolveVerification(
+    leadId: string,
+    field: string,
+    source: "form" | "call",
+    note: string,
+  ) {
+    const reviewerName = reviewer.trim() || "CRM Admin";
+    localStorage.setItem("scale-crm-reviewer", reviewerName);
+    setReviewer(reviewerName);
+    setVerificationSaving(`${leadId}:${field}`);
+    const response = await fetch(CRM_ENDPOINT, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-scale-crm-password": crmPassword,
+      },
+      body: JSON.stringify({
+        action: "resolve_verification",
+        id: leadId,
+        field,
+        source,
+        reviewer: reviewerName,
+        note,
+      }),
+    });
+    if (response.ok) await load();
+    setVerificationSaving(null);
   }
 
   // ── Analytics ──────────────────────────────────────────────────────────────
@@ -898,64 +968,13 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                           <p className="text-sm">{lead.notes}</p>
                         </div>
                       )}
-                      {(lead.call_evidence?.transcript || lead.call_evidence?.recording_url) && (
-                        <div className="mb-4 rounded-xl bg-background border border-border p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                              Outbound Qualification Call
-                            </p>
-                            <span className="text-xs text-muted-foreground">
-                              {lead.call_evidence?.captured_at
-                                ? `Saved ${fmtDateTime(lead.call_evidence.captured_at)}`
-                                : "Call evidence saved"}
-                            </span>
-                          </div>
-                          <div className="mt-3 grid gap-3 sm:grid-cols-3 text-sm">
-                            <Detail label="Disposition" value={lead.outbound_call_status ?? "—"} />
-                            <Detail
-                              label="Duration"
-                              value={fmtDuration(lead.call_evidence?.duration_ms)}
-                            />
-                            <Detail
-                              label="Call Ended"
-                              value={
-                                lead.call_evidence?.disconnection_reason?.replace(/_/g, " ") ?? "—"
-                              }
-                            />
-                          </div>
-                          {lead.call_evidence?.call_summary && (
-                            <p className="mt-3 text-sm text-muted-foreground">
-                              {lead.call_evidence.call_summary}
-                            </p>
-                          )}
-                          {lead.call_evidence?.recording_url && (
-                            <div className="mt-4 grid gap-2">
-                              <audio controls preload="metadata" className="w-full">
-                                <source src={lead.call_evidence.recording_url} />
-                                Your browser does not support call recording playback.
-                              </audio>
-                              <a
-                                href={lead.call_evidence.recording_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline"
-                              >
-                                Open call recording in a new tab
-                              </a>
-                            </div>
-                          )}
-                          {lead.call_evidence?.transcript && (
-                            <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                                Call Transcript
-                              </p>
-                              <p className="max-h-72 overflow-y-auto whitespace-pre-wrap pr-1 text-sm leading-relaxed">
-                                {lead.call_evidence.transcript}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <CommunicationVerification
+                        lead={lead}
+                        reviewer={reviewer}
+                        setReviewer={setReviewer}
+                        saving={verificationSaving}
+                        onResolve={resolveVerification}
+                      />
                       {!!lead.credit_screenshots?.length && (
                         <div className="mb-4 rounded-xl bg-background border border-border p-4">
                           <div className="flex items-center justify-between gap-2">
@@ -1207,6 +1226,258 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
       {editLead && (
         <EditLeadModal lead={editLead} onSave={saveLead} onClose={() => setEditLead(null)} />
       )}
+    </div>
+  );
+}
+
+const VERIFICATION_LABELS: Record<string, string> = {
+  credit_score: "Credit score",
+  utilization: "Credit utilization",
+  llc_status: "LLC status",
+  investment_ready: "Investment readiness",
+  funding_amount: "Requested funding",
+  calendar_booking_status: "Calendar booking",
+};
+
+function answerText(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value).replace(/_/g, " ");
+}
+
+function CommunicationVerification({
+  lead,
+  reviewer,
+  setReviewer,
+  saving,
+  onResolve,
+}: {
+  lead: Lead;
+  reviewer: string;
+  setReviewer: (value: string) => void;
+  saving: string | null;
+  onResolve: (
+    leadId: string,
+    field: string,
+    source: "form" | "call",
+    note: string,
+  ) => Promise<void>;
+}) {
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const timeline = useMemo(
+    () =>
+      [
+        ...(lead.communications ?? []).map((item) => ({
+          kind: "message" as const,
+          at: item.occurred_at,
+          item,
+        })),
+        ...(lead.call_history ?? []).map((item) => ({
+          kind: "call" as const,
+          at: item.captured_at ?? lead.created_at,
+          item,
+        })),
+      ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    [lead],
+  );
+
+  return (
+    <div className="mb-4 rounded-xl border border-border bg-background p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Communication &amp; Verification
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Compare submitted answers with what the lead confirmed on the call.
+          </p>
+        </div>
+        <label className="text-xs text-muted-foreground">
+          Reviewer
+          <input
+            value={reviewer}
+            onChange={(event) => setReviewer(event.target.value)}
+            className="ml-2 rounded-lg border border-border bg-background px-2 py-1 text-foreground"
+            aria-label="Reviewer name"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {(lead.answer_comparisons ?? []).map((answer) => {
+          const busy = saving === `${lead.id}:${answer.field}`;
+          const statusMeta =
+            answer.status === "match"
+              ? {
+                  label: "Match",
+                  className: "border-green-200 bg-green-50 text-green-700",
+                  icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                }
+              : answer.status === "conflict"
+                ? {
+                    label: "Conflict",
+                    className: "border-red-200 bg-red-50 text-red-700",
+                    icon: <XCircle className="h-3.5 w-3.5" />,
+                  }
+                : {
+                    label: "Not confirmed",
+                    className: "border-amber-200 bg-amber-50 text-amber-700",
+                    icon: <AlertCircle className="h-3.5 w-3.5" />,
+                  };
+          return (
+            <div key={answer.field} className="rounded-xl border border-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  {VERIFICATION_LABELS[answer.field] ?? answer.field}
+                </p>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${statusMeta.className}`}
+                >
+                  {statusMeta.icon} {statusMeta.label}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg bg-muted/30 p-2 text-sm">
+                  <span className="block text-[11px] uppercase text-muted-foreground">
+                    Form answer
+                  </span>
+                  {answerText(answer.form_value)}
+                </div>
+                <div className="rounded-lg bg-muted/30 p-2 text-sm">
+                  <span className="block text-[11px] uppercase text-muted-foreground">
+                    Call answer
+                  </span>
+                  {answerText(answer.call_value)}
+                </div>
+              </div>
+              {answer.verification ? (
+                <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+                  Verified as{" "}
+                  <strong className="capitalize">
+                    {answerText(answer.verification.verified_value)}
+                  </strong>{" "}
+                  by {answer.verification.reviewer} on{" "}
+                  {fmtDateTime(answer.verification.reviewed_at)}
+                  {answer.verification.note ? ` — ${answer.verification.note}` : ""}
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    value={notes[answer.field] ?? ""}
+                    onChange={(event) =>
+                      setNotes((current) => ({ ...current, [answer.field]: event.target.value }))
+                    }
+                    placeholder="Optional review note"
+                    className="min-w-[180px] flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    disabled={busy || answer.form_value == null}
+                    onClick={() =>
+                      onResolve(lead.id, answer.field, "form", notes[answer.field] ?? "")
+                    }
+                    className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-40"
+                  >
+                    Use form
+                  </button>
+                  <button
+                    disabled={busy || answer.call_value == null}
+                    onClick={() =>
+                      onResolve(lead.id, answer.field, "call", notes[answer.field] ?? "")
+                    }
+                    className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                  >
+                    Use call
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 border-t border-border pt-4">
+        <p className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+          <MessageSquare className="h-4 w-4" /> Communication timeline
+        </p>
+        {timeline.length === 0 ? (
+          <p className="py-4 text-sm text-muted-foreground">
+            No calls or messages have been saved yet.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-3">
+            {timeline.map((event) =>
+              event.kind === "message" ? (
+                <div
+                  key={`message-${event.item.id}`}
+                  className={`rounded-xl border p-3 ${event.item.direction === "outbound" ? "ml-6 border-primary/20 bg-primary/5" : "mr-6 border-border bg-muted/20"}`}
+                >
+                  <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="capitalize">
+                      {event.item.direction} {event.item.channel}
+                    </span>
+                    <span>
+                      {fmtDateTime(event.at)} · {event.item.status}
+                    </span>
+                  </div>
+                  {event.item.body && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm">{event.item.body}</p>
+                  )}
+                  {event.item.error_message && (
+                    <p className="mt-2 text-xs text-red-600">{event.item.error_message}</p>
+                  )}
+                  {(lead.credit_screenshots ?? [])
+                    .filter((shot) => shot.twilio_message_sid === event.item.twilio_message_sid)
+                    .map((shot) =>
+                      shot.signed_url ? (
+                        <a
+                          key={shot.id}
+                          href={shot.signed_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-block"
+                        >
+                          <img
+                            src={shot.signed_url}
+                            alt="MMS attachment"
+                            className="max-h-44 rounded-lg border border-border"
+                          />
+                        </a>
+                      ) : null,
+                    )}
+                </div>
+              ) : (
+                <div
+                  key={`call-${event.item.retell_call_id}`}
+                  className="rounded-xl border border-border p-3"
+                >
+                  <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                    <span>Retell call · {fmtDuration(event.item.duration_ms)}</span>
+                    <span>{fmtDateTime(event.at)}</span>
+                  </div>
+                  {event.item.call_summary && (
+                    <p className="mt-2 text-sm">{event.item.call_summary}</p>
+                  )}
+                  {event.item.recording_url && (
+                    <audio controls preload="metadata" className="mt-3 w-full">
+                      <source src={event.item.recording_url} />
+                    </audio>
+                  )}
+                  {event.item.transcript && (
+                    <details className="mt-3 rounded-lg bg-muted/20 p-2">
+                      <summary className="cursor-pointer text-xs font-medium uppercase text-muted-foreground">
+                        Call transcript
+                      </summary>
+                      <p className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                        {event.item.transcript}
+                      </p>
+                    </details>
+                  )}
+                </div>
+              ),
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

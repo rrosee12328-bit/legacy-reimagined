@@ -55,7 +55,8 @@ Deno.serve(async (request) => {
 
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-  if (!authToken || !accountSid) return new Response("Messaging is not configured", { status: 500 });
+  if (!authToken || !accountSid)
+    return new Response("Messaging is not configured", { status: 500 });
 
   const rawBody = await request.text();
   const params = new URLSearchParams(rawBody);
@@ -65,7 +66,9 @@ Deno.serve(async (request) => {
 
   const from = params.get("From") ?? "";
   const messageSid = params.get("MessageSid") ?? params.get("SmsMessageSid") ?? "";
-  const body = (params.get("Body") ?? "").trim().toLowerCase();
+  const originalBody = (params.get("Body") ?? "").trim();
+  const body = originalBody.toLowerCase();
+  const to = params.get("To") ?? "+16153074302";
   const mediaCount = Number(params.get("NumMedia") ?? "0");
   if (!from || !messageSid) return new Response("Invalid Twilio payload", { status: 400 });
 
@@ -82,16 +85,40 @@ Deno.serve(async (request) => {
       .order("created_at", { ascending: false })
       .limit(500);
     if (leadError) throw leadError;
-    const lead = (candidates ?? []).find((candidate) => normalizePhone(candidate.phone ?? "") === senderDigits);
+    const lead = (candidates ?? []).find(
+      (candidate) => normalizePhone(candidate.phone ?? "") === senderDigits,
+    );
+
+    const { error: communicationError } = await supabase.from("lead_communications").upsert(
+      {
+        lead_id: lead?.id ?? null,
+        twilio_message_sid: messageSid,
+        direction: "inbound",
+        channel: mediaCount > 0 ? "mms" : "sms",
+        from_phone: from,
+        to_phone: to,
+        body: originalBody,
+        status: params.get("SmsStatus") ?? "received",
+        matching_status: lead ? "matched" : "unmatched",
+        occurred_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "twilio_message_sid" },
+    );
+    if (communicationError) throw communicationError;
 
     if (OPT_OUT_WORDS.has(body) && lead) {
-      const { error } = await supabase.from("leads").update({ sms_opted_out: true }).eq("id", lead.id);
+      const { error } = await supabase
+        .from("leads")
+        .update({ sms_opted_out: true })
+        .eq("id", lead.id);
       if (error) throw error;
     }
 
     if (mediaCount < 1 || !lead) return twimlResponse();
 
     const authorization = `Basic ${btoa(`${accountSid}:${authToken}`)}`;
+    const savedMedia: Array<Record<string, unknown>> = [];
     for (let index = 0; index < mediaCount; index += 1) {
       const mediaUrl = params.get(`MediaUrl${index}`);
       const contentType = params.get(`MediaContentType${index}`) ?? "application/octet-stream";
@@ -103,10 +130,14 @@ Deno.serve(async (request) => {
         .eq("twilio_message_sid", messageSid)
         .eq("media_index", index)
         .maybeSingle();
-      if (existing.data) continue;
+      if (existing.data) {
+        savedMedia.push({ index, content_type: contentType });
+        continue;
+      }
 
       const mediaResponse = await fetch(mediaUrl, { headers: { Authorization: authorization } });
-      if (!mediaResponse.ok) throw new Error(`Twilio media download failed: ${mediaResponse.status}`);
+      if (!mediaResponse.ok)
+        throw new Error(`Twilio media download failed: ${mediaResponse.status}`);
       const storagePath = `${lead.id}/${messageSid}-${index}.${extensionFor(contentType)}`;
       const mediaBytes = await mediaResponse.arrayBuffer();
       const { error: uploadError } = await supabase.storage
@@ -123,7 +154,14 @@ Deno.serve(async (request) => {
         content_type: contentType,
       });
       if (insertError) throw insertError;
+      savedMedia.push({ index, content_type: contentType, storage_path: storagePath });
     }
+
+    const { error: mediaUpdateError } = await supabase
+      .from("lead_communications")
+      .update({ media: savedMedia, updated_at: new Date().toISOString() })
+      .eq("twilio_message_sid", messageSid);
+    if (mediaUpdateError) throw mediaUpdateError;
 
     return twimlResponse();
   } catch (error) {

@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.scale-inbound-mms]
 verify_jwt = false
+
+[functions.scale-twilio-message-status]
+verify_jwt = false

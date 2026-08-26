@@ -41,7 +41,12 @@ async function sendTwilioSms(to: string, body: string) {
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
   if (!accountSid || !authToken) throw new Error("SMS delivery is not configured");
 
-  const form = new URLSearchParams({ To: to, From: "+16153074302", Body: body });
+  const form = new URLSearchParams({
+    To: to,
+    From: "+16153074302",
+    Body: body,
+    StatusCallback: `${Deno.env.get("SUPABASE_URL")}/functions/v1/scale-twilio-message-status`,
+  });
   const response = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
@@ -55,7 +60,7 @@ async function sendTwilioSms(to: string, body: string) {
   );
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(JSON.stringify(payload));
-  return String(payload.sid ?? "");
+  return { sid: String(payload.sid ?? ""), status: String(payload.status ?? "queued") };
 }
 
 async function sendUnbookedFollowUp(supabase: ReturnType<typeof createClient>, leadId: string) {
@@ -99,13 +104,30 @@ async function sendUnbookedFollowUp(supabase: ReturnType<typeof createClient>, l
   if (!claimed?.phone) return;
 
   try {
-    const sid = await sendTwilioSms(toE164Phone(claimed.phone), FOLLOW_UP_MESSAGE);
+    const toPhone = toE164Phone(claimed.phone);
+    const message = await sendTwilioSms(toPhone, FOLLOW_UP_MESSAGE);
+    const { error: communicationError } = await supabase.from("lead_communications").upsert(
+      {
+        lead_id: leadId,
+        twilio_message_sid: message.sid,
+        direction: "outbound",
+        channel: "sms",
+        from_phone: "+16153074302",
+        to_phone: toPhone,
+        body: FOLLOW_UP_MESSAGE,
+        status: message.status,
+        matching_status: "matched",
+        occurred_at: new Date().toISOString(),
+      },
+      { onConflict: "twilio_message_sid" },
+    );
+    if (communicationError) throw communicationError;
     const { error: sentError } = await supabase
       .from("leads")
       .update({
         booking_followup_sms_sent_at: new Date().toISOString(),
         booking_followup_sms_status: "sent",
-        booking_followup_sms_sid: sid,
+        booking_followup_sms_sid: message.sid,
       })
       .eq("id", leadId);
     if (sentError) throw sentError;
@@ -145,6 +167,31 @@ Deno.serve(async (request) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    if (call.call_id) {
+      const baseAnalysis = call.call_analysis ?? {};
+      const baseOutcome =
+        baseAnalysis.custom_analysis_data?.scale_qualification ??
+        baseAnalysis.custom_analysis_data ??
+        {};
+      const { error: historyError } = await supabase.from("lead_call_evidence").upsert(
+        {
+          lead_id: leadId,
+          retell_call_id: call.call_id,
+          transcript: call.transcript ?? null,
+          recording_url: call.recording_url ?? null,
+          recording_multi_channel_url: call.recording_multi_channel_url ?? null,
+          duration_ms: call.duration_ms ?? null,
+          disconnection_reason: call.disconnection_reason ?? null,
+          call_summary: baseAnalysis.call_summary ?? null,
+          analysis_data: baseOutcome,
+          captured_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "retell_call_id" },
+      );
+      if (historyError) throw historyError;
+    }
 
     if (call.disconnection_reason === "dial_no_answer") {
       const { error: unansweredError } = await supabase
@@ -189,24 +236,6 @@ Deno.serve(async (request) => {
     const { error } = await supabase.from("leads").update(update).eq("id", leadId);
     if (error) throw error;
 
-    if (call.call_id) {
-      const { error: evidenceError } = await supabase.from("lead_call_evidence").upsert(
-        {
-          lead_id: leadId,
-          retell_call_id: call.call_id,
-          transcript: call.transcript ?? null,
-          recording_url: call.recording_url ?? null,
-          recording_multi_channel_url: call.recording_multi_channel_url ?? null,
-          duration_ms: call.duration_ms ?? null,
-          disconnection_reason: call.disconnection_reason ?? null,
-          call_summary: analysis.call_summary ?? null,
-          captured_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "lead_id" },
-      );
-      if (evidenceError) throw evidenceError;
-    }
     if (qualificationStatus === "qualified") {
       await sendUnbookedFollowUp(supabase, leadId);
     }
