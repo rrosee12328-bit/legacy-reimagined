@@ -27,9 +27,9 @@ function NotQualifiedPage() {
           We cannot confirm the initial funding benchmarks yet.
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          Scale to Legacy funding sessions are reserved for applicants who report a personal
-          credit score of 680 or higher and credit utilization below 30%. Strengthen your credit
-          profile and reapply when you meet both benchmarks.
+          Scale to Legacy funding sessions are reserved for applicants who report a personal credit
+          score of 680 or higher. Strengthen your credit profile and reapply when you meet that
+          benchmark.
         </p>
         <a
           href={EBOOK_URL}

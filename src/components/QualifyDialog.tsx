@@ -45,10 +45,10 @@ interface Answers {
 
 // ─── Routing logic ────────────────────────────────────────────────────────────
 function routeLead(a: Answers): Result {
-  // Initial funding sessions require a self-reported 680+ score and utilization below 30%.
+  // Initial funding sessions require a self-reported 680+ score. Utilization is
+  // collected for the funding strategy, but does not block calendar access.
   const hasScoreBenchmark = ["680_699", "700_749", "750_plus"].includes(a.credit_score);
-  const hasUtilizationBenchmark = ["under_10", "10_29"].includes(a.utilization);
-  return hasScoreBenchmark && hasUtilizationBenchmark ? "funding" : "disqualified";
+  return hasScoreBenchmark ? "funding" : "disqualified";
 }
 
 // ─── Supabase lead score ──────────────────────────────────────────────────────
@@ -411,8 +411,8 @@ function BookingResultScreen({
       <div className="mt-5 rounded-xl border-2 border-primary bg-primary/10 px-4 py-3 text-left">
         <p className="font-semibold text-sm">Your application is not finished yet.</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select a date, choose a time, and submit the Calendly form below. You are booked only
-          when you see the confirmation screen and receive the calendar invitation.
+          Select a date, choose a time, and submit the Calendly form below. You are booked only when
+          you see the confirmation screen and receive the calendar invitation.
         </p>
       </div>
       <div className="mt-6 text-left">
