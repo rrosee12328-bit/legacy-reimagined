@@ -45,10 +45,11 @@ interface Answers {
 
 // ─── Routing logic ────────────────────────────────────────────────────────────
 function routeLead(a: Answers): Result {
-  // Initial funding sessions require a self-reported 680+ score. Utilization is
-  // collected for the funding strategy, but does not block calendar access.
+  // Initial funding sessions require a self-reported 680+ score and utilization
+  // of 50% or less.
   const hasScoreBenchmark = ["680_699", "700_749", "750_plus"].includes(a.credit_score);
-  return hasScoreBenchmark ? "funding" : "disqualified";
+  const hasUtilizationBenchmark = ["under_10", "10_29", "30_50"].includes(a.utilization);
+  return hasScoreBenchmark && hasUtilizationBenchmark ? "funding" : "disqualified";
 }
 
 // ─── Supabase lead score ──────────────────────────────────────────────────────
@@ -202,8 +203,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
             icon={<CheckCircle2 className="h-8 w-8" />}
             color="text-primary"
             bg="bg-primary/15"
-            title="You may qualify for business funding."
-            body="You’re on the final step. Please choose the available date and time that works best for you below to complete your funding strategy session booking."
+            title="You meet the initial benchmarks—now book your required qualification call."
+            body="Please book your call on the calendar below to receive your full qualification review. Your qualification is not complete until the appointment is booked."
             name={answers.full_name}
             email={answers.email}
             leadId={leadId}
@@ -280,8 +281,8 @@ export function QualifyDialog({ open, onClose }: { open: boolean; onClose: () =>
                   {[
                     { v: "under_10", l: "Under 10%" },
                     { v: "10_29", l: "10% – 29%" },
-                    { v: "30_49", l: "30% – 49%" },
-                    { v: "50_plus", l: "50% or more" },
+                    { v: "30_50", l: "30% – 50%" },
+                    { v: "over_50", l: "Over 50%" },
                   ].map((o) => (
                     <OptionBtn
                       key={o.v}
@@ -409,10 +410,11 @@ function BookingResultScreen({
       <h3 className="mt-1 font-display text-2xl">{title}</h3>
       <p className="mt-3 text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">{body}</p>
       <div className="mt-5 rounded-xl border-2 border-primary bg-primary/10 px-4 py-3 text-left">
-        <p className="font-semibold text-sm">Your application is not finished yet.</p>
+        <p className="font-semibold text-sm">You are not fully qualified yet.</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select a date, choose a time, and submit the Calendly form below. You are booked only when
-          you see the confirmation screen and receive the calendar invitation.
+          To complete qualification, select a date and time below and submit the calendar booking.
+          Your appointment is booked only after you see the confirmation screen and receive the
+          calendar invitation.
         </p>
       </div>
       <div className="mt-6 text-left">
@@ -435,7 +437,7 @@ function BookingResultScreen({
         onClick={onClose}
         className="mt-4 block mx-auto text-sm text-muted-foreground underline"
       >
-        Close
+        Finish later—my qualification will remain incomplete
       </button>
       {disclaimer && (
         <p className="mt-5 text-xs text-muted-foreground max-w-sm mx-auto">{disclaimer}</p>

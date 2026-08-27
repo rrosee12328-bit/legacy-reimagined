@@ -5,6 +5,7 @@ const corsHeaders = {
 };
 
 const qualifyingScores = new Set(["680_699", "700_749", "750_plus"]);
+const qualifyingUtilization = new Set(["under_10", "10_29", "30_50"]);
 
 function response(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
@@ -52,12 +53,13 @@ Deno.serve(async (request) => {
       lead?.source === "qualify_form" &&
       lead?.sms_contact_consent === true &&
       Boolean(lead?.contact_consent_at) &&
-      qualifyingScores.has(lead?.credit_score);
+      qualifyingScores.has(lead?.credit_score) &&
+      qualifyingUtilization.has(lead?.utilization);
 
     if (!qualifies) {
       return response(200, {
         action: "skipped",
-        reason: "Credit score threshold not met",
+        reason: "Credit score or utilization threshold not met",
       });
     }
 

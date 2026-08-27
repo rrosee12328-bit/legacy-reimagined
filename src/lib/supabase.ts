@@ -28,5 +28,7 @@ export interface LeadInput {
 }
 
 export function scoreLead(input: LeadInput): LeadScore {
-  return ["680_699", "700_749", "750_plus"].includes(input.credit_score) ? "hot" : "cold";
+  const hasScoreBenchmark = ["680_699", "700_749", "750_plus"].includes(input.credit_score);
+  const hasUtilizationBenchmark = ["under_10", "10_29", "30_50"].includes(input.utilization ?? "");
+  return hasScoreBenchmark && hasUtilizationBenchmark ? "hot" : "cold";
 }

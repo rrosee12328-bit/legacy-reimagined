@@ -28,8 +28,8 @@ function NotQualifiedPage() {
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           Scale to Legacy funding sessions are reserved for applicants who report a personal credit
-          score of 680 or higher. Strengthen your credit profile and reapply when you meet that
-          benchmark.
+          score of 680 or higher and credit utilization of 50% or less. Strengthen your credit
+          profile and reapply when you meet both benchmarks.
         </p>
         <a
           href={EBOOK_URL}

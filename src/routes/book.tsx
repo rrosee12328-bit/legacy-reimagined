@@ -80,11 +80,12 @@ function BookPage() {
             Funding Readiness
           </p>
           <h1 className="mt-3 font-display text-3xl md:text-4xl">
-            This booking page is for 680+ funding applicants.
+            This booking page is for applicants who meet the initial funding benchmarks.
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Scale to Legacy funding sessions are reserved for applicants who have completed the
-            qualification form and reported a personal credit score of 680 or higher.
+            Scale to Legacy funding sessions are reserved for applicants who completed the
+            qualification form and reported a personal credit score of 680 or higher with credit
+            utilization of 50% or less.
           </p>
           <a
             href="/"
