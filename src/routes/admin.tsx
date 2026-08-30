@@ -809,7 +809,7 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
         {view === "leads" && (
           <div className="grid gap-5">
             {/* Filters */}
-            <div className="flex flex-wrap gap-3 rounded-2xl border border-blue-500/15 bg-gradient-to-r from-blue-500/5 via-background to-violet-500/5 p-3 shadow-[0_12px_40px_-24px_rgba(37,99,235,0.55)]">
+            <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_-22px_rgba(15,23,42,0.28)]">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -817,7 +817,7 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                   placeholder="Search name, email, phone…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-xl border border-blue-500/20 bg-background pl-9 pr-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
                 />
               </div>
               <FSelect
@@ -844,14 +844,14 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
               Showing {visible.length} of {leads.length} leads
             </p>
 
-            <div className="grid min-h-[680px] overflow-hidden rounded-3xl border border-blue-500/20 bg-background shadow-[0_30px_90px_-34px_rgba(37,99,235,0.5),0_0_0_1px_rgba(99,102,241,0.08)] lg:grid-cols-[330px_minmax(0,1fr)]">
-              <aside className="border-b border-white/10 bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950 text-white lg:border-b-0 lg:border-r">
-                <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.035] px-4 py-4">
+            <div className="grid min-h-[680px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.32)] lg:grid-cols-[300px_minmax(0,1fr)]">
+              <aside className="border-b border-slate-200 bg-slate-50/70 text-slate-900 lg:border-b-0 lg:border-r">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
                   <div>
                     <p className="text-sm font-semibold">Lead inbox</p>
-                    <p className="text-xs text-slate-400">{visible.length} matching leads</p>
+                    <p className="text-xs text-slate-500">{visible.length} matching leads</p>
                   </div>
-                  <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 shadow-[0_0_18px_-6px_rgba(34,211,238,0.8)]">
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                     {visible.filter((lead) => lead.score === "hot").length} priority
                   </span>
                 </div>
@@ -873,12 +873,12 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                       <button
                         key={lead.id}
                         onClick={() => setSelectedLeadId(lead.id)}
-                        className={`mb-1.5 w-full rounded-2xl border p-3 text-left transition ${selected ? "border-cyan-300/35 bg-gradient-to-br from-blue-600/30 to-violet-600/20 shadow-[0_12px_30px_-15px_rgba(34,211,238,0.7)] ring-1 ring-cyan-300/15" : "border-transparent hover:border-white/10 hover:bg-white/[0.06]"}`}
+                        className={`mb-1.5 w-full rounded-xl border p-3 text-left transition ${selected ? "border-emerald-200 bg-white shadow-[0_8px_24px_-16px_rgba(16,185,129,0.55)] ring-1 ring-emerald-100" : "border-transparent hover:border-slate-200 hover:bg-white"}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">{lead.full_name}</p>
-                            <p className="mt-0.5 truncate text-xs text-slate-400">
+                            <p className="mt-0.5 truncate text-xs text-slate-500">
                               {lead.business_name || lead.email}
                             </p>
                           </div>
@@ -892,20 +892,20 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span
-                            className={`truncate text-[11px] ${selected ? "text-cyan-200" : "text-slate-400"}`}
+                            className={`truncate text-[11px] ${selected ? "font-medium text-emerald-700" : "text-slate-500"}`}
                           >
                             {lastCall ? callOutcomeLabel(lead) : "Awaiting first call"}
                           </span>
-                          <span className="shrink-0 text-[10px] text-slate-500">
+                          <span className="shrink-0 text-[10px] text-slate-400">
                             {fmtDate(lead.created_at)}
                           </span>
                         </div>
                         <div className="mt-2 flex gap-1.5">
                           {!!lead.call_history?.length && (
-                            <Headphones className="h-3.5 w-3.5 text-cyan-300" />
+                            <Headphones className="h-3.5 w-3.5 text-emerald-600" />
                           )}
                           {!!lead.communications?.length && (
-                            <MessageSquare className="h-3.5 w-3.5 text-violet-300" />
+                            <MessageSquare className="h-3.5 w-3.5 text-teal-600" />
                           )}
                           {!!lead.answer_comparisons?.some(
                             (item) => item.status === "conflict" && !item.verification,
@@ -917,7 +917,7 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                 </div>
               </aside>
 
-              <section className="min-w-0 bg-gradient-to-br from-slate-50 via-background to-blue-50/40">
+              <section className="min-w-0 bg-white">
                 {selectedLead ? (
                   <LeadWorkspace
                     lead={selectedLead}
@@ -1394,29 +1394,29 @@ function LeadWorkspace({
 
   return (
     <div>
-      <div className="relative overflow-hidden border-b border-blue-400/20 bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 px-5 py-6 text-white md:px-7">
-        <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-cyan-400/15 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-64 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="relative overflow-hidden border-b border-slate-200 bg-white px-5 py-6 text-slate-900 md:px-7">
+        <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-emerald-100/60 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-64 rounded-full bg-teal-50 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-display text-2xl">{lead.full_name}</h2>
               <StatusBadge status={lead.status} />
             </div>
-            <p className="mt-1 text-sm text-slate-300">
+            <p className="mt-1 text-sm text-slate-500">
               {lead.business_name || "Business funding applicant"}
             </p>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-200">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
               <a
                 href={`tel:${lead.phone}`}
-                className="inline-flex items-center gap-1.5 hover:text-cyan-300"
+                className="inline-flex items-center gap-1.5 hover:text-emerald-700"
               >
                 <Phone className="h-3.5 w-3.5" />
                 {lead.phone}
               </a>
               <a
                 href={`mailto:${lead.email}`}
-                className="inline-flex items-center gap-1.5 hover:text-cyan-300"
+                className="inline-flex items-center gap-1.5 hover:text-emerald-700"
               >
                 <Mail className="h-3.5 w-3.5" />
                 {lead.email}
@@ -1426,7 +1426,7 @@ function LeadWorkspace({
           <div className="flex flex-wrap gap-2">
             <a
               href={`tel:${lead.phone}`}
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur hover:bg-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold shadow-sm hover:bg-slate-50"
             >
               <Phone className="h-3.5 w-3.5" />
               Call
@@ -1435,7 +1435,7 @@ function LeadWorkspace({
               href="https://calendly.com/scaletolegacy/30min"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur hover:bg-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold shadow-sm hover:bg-slate-50"
             >
               <Calendar className="h-3.5 w-3.5" />
               Calendar
@@ -1443,7 +1443,7 @@ function LeadWorkspace({
             </a>
             <button
               onClick={onEdit}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-[0_10px_30px_-10px_rgba(34,211,238,0.9)] hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_24px_-12px_rgba(16,185,129,0.65)] hover:bg-emerald-600"
             >
               <Edit3 className="h-3.5 w-3.5" />
               Edit lead
@@ -1502,7 +1502,7 @@ function LeadWorkspace({
           <Detail label="Assigned to" value={lead.assigned_to ?? "Lonnie"} />
         </div>
         {lead.notes && (
-          <div className="mb-5 rounded-2xl border border-violet-500/15 bg-gradient-to-r from-violet-500/5 to-blue-500/5 p-4 shadow-[0_12px_35px_-25px_rgba(99,102,241,0.7)]">
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Internal notes
             </p>
@@ -1536,18 +1536,18 @@ function SummaryTile({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-3.5 backdrop-blur-md ${alert ? "border-red-300/30 bg-red-500/15 shadow-[0_12px_28px_-18px_rgba(239,68,68,0.9)]" : "border-white/10 bg-white/[0.075] shadow-[0_12px_30px_-22px_rgba(34,211,238,0.8)]"}`}
+      className={`rounded-xl border p-3.5 ${alert ? "border-red-200 bg-red-50 shadow-sm" : "border-slate-200 bg-slate-50/70 shadow-[0_8px_22px_-18px_rgba(15,23,42,0.35)]"}`}
     >
       <div
-        className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${alert ? "text-red-200" : "text-cyan-200"}`}
+        className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${alert ? "text-red-600" : "text-emerald-700"}`}
       >
         {icon}
         {label}
       </div>
-      <p className={`mt-2 text-sm font-semibold ${alert ? "text-red-100" : "text-white"}`}>
+      <p className={`mt-2 text-sm font-semibold ${alert ? "text-red-700" : "text-slate-900"}`}>
         {value}
       </p>
-      <p className="mt-0.5 truncate text-[11px] text-slate-400">{detail}</p>
+      <p className="mt-0.5 truncate text-[11px] text-slate-500">{detail}</p>
     </div>
   );
 }
@@ -1613,7 +1613,7 @@ function CommunicationVerification({
   );
 
   return (
-    <div className="rounded-2xl border border-blue-500/15 bg-background p-4 shadow-[0_18px_55px_-34px_rgba(37,99,235,0.7),0_0_0_1px_rgba(99,102,241,0.04)] md:p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_45px_-34px_rgba(15,23,42,0.4)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -1658,7 +1658,7 @@ function CommunicationVerification({
           return (
             <div
               key={answer.field}
-              className="rounded-xl border border-indigo-500/15 bg-gradient-to-br from-background to-indigo-500/[0.035] p-3 shadow-[0_10px_28px_-24px_rgba(79,70,229,0.8)]"
+              className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.3)]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
@@ -1743,7 +1743,7 @@ function CommunicationVerification({
               event.kind === "message" ? (
                 <div
                   key={`message-${event.item.id}`}
-                  className={`rounded-xl border p-3 shadow-[0_12px_30px_-24px_rgba(37,99,235,0.8)] ${event.item.direction === "outbound" ? "ml-6 border-blue-500/25 bg-gradient-to-br from-blue-500/10 to-cyan-500/5" : "mr-6 border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-background"}`}
+                  className={`rounded-xl border p-3 shadow-sm ${event.item.direction === "outbound" ? "ml-6 border-emerald-200 bg-emerald-50/70" : "mr-6 border-slate-200 bg-slate-50/70"}`}
                 >
                   <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
                     <span className="capitalize">
@@ -1780,9 +1780,9 @@ function CommunicationVerification({
               ) : (
                 <div
                   key={`call-${event.item.retell_call_id}`}
-                  className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-slate-950 to-blue-950 p-4 text-white shadow-[0_16px_36px_-22px_rgba(6,182,212,0.8)]"
+                  className="rounded-xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/60 p-4 text-slate-900 shadow-[0_12px_30px_-22px_rgba(16,185,129,0.45)]"
                 >
-                  <div className="flex flex-wrap justify-between gap-2 text-xs text-cyan-200">
+                  <div className="flex flex-wrap justify-between gap-2 text-xs font-medium text-emerald-700">
                     <span className="inline-flex items-center gap-1.5">
                       <Headphones className="h-3.5 w-3.5" />
                       Call recording · {fmtDuration(event.item.duration_ms)}
@@ -1798,8 +1798,8 @@ function CommunicationVerification({
                     </audio>
                   )}
                   {event.item.transcript && (
-                    <details className="mt-3 rounded-lg border border-white/10 bg-white/[0.06] p-2">
-                      <summary className="cursor-pointer text-xs font-medium uppercase text-cyan-200">
+                    <details className="mt-3 rounded-lg border border-emerald-100 bg-white p-2">
+                      <summary className="cursor-pointer text-xs font-medium uppercase text-emerald-700">
                         Call transcript
                       </summary>
                       <p className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
