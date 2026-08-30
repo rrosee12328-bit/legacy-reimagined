@@ -24,6 +24,47 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, PATCH, DELETE, OPTIONS",
   "Content-Type": "application/json",
 };
+const BOOKING_URL = "https://calendly.com/scaletolegacy/30min";
+const TWILIO_FROM_NUMBER = "+16153074302";
+
+function toE164Phone(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("+")) return trimmed;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return trimmed;
+}
+
+function bookingReminder(firstName: string) {
+  return `Hi ${firstName}, this is Scale to Legacy. Your qualification for business funding is incomplete until you book your required call. Book here: ${BOOKING_URL}. Your appointment is confirmed only after you see the confirmation screen and receive the calendar invitation. Reply STOP to opt out.`;
+}
+
+async function sendTwilioSms(to: string, body: string) {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  if (!accountSid || !authToken) throw new Error("SMS delivery is not configured");
+  const form = new URLSearchParams({
+    To: to,
+    From: TWILIO_FROM_NUMBER,
+    Body: body,
+    StatusCallback: `${Deno.env.get("SUPABASE_URL")}/functions/v1/scale-twilio-message-status`,
+  });
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form,
+    },
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`Twilio ${response.status}: ${JSON.stringify(result)}`);
+  return { sid: String(result.sid ?? ""), status: String(result.status ?? "queued") };
+}
 
 function isAuthorized(request: Request) {
   const password = Deno.env.get("SCALE_CRM_ADMIN_PASSWORD");
@@ -267,6 +308,90 @@ Deno.serve(async (request) => {
 
     if (request.method === "PATCH") {
       const payload = await request.json();
+      if (payload.action === "send_booking_reminder") {
+        const leadId = String(payload.id ?? "");
+        if (!leadId) return new Response("Missing lead id", { status: 400, headers: corsHeaders });
+        const { data: lead, error: leadError } = await supabase
+          .from("leads")
+          .select(
+            "id, full_name, phone, sms_contact_consent, sms_opted_out, calendar_booked_at, booking_followup_sms_attempted_at, booking_followup_sms_sent_at",
+          )
+          .eq("id", leadId)
+          .single();
+        if (leadError) throw leadError;
+        if (!lead.sms_contact_consent || lead.sms_opted_out)
+          return Response.json(
+            { sent: false, reason: "no_consent_or_opted_out" },
+            { headers: corsHeaders },
+          );
+        if (lead.calendar_booked_at)
+          return Response.json({ sent: false, reason: "already_booked" }, { headers: corsHeaders });
+        if (lead.booking_followup_sms_attempted_at || lead.booking_followup_sms_sent_at)
+          return Response.json(
+            { sent: false, reason: "already_attempted" },
+            { headers: corsHeaders },
+          );
+
+        const attemptedAt = new Date().toISOString();
+        const { data: claimed, error: claimError } = await supabase
+          .from("leads")
+          .update({
+            booking_followup_sms_attempted_at: attemptedAt,
+            booking_followup_sms_status: "sending",
+          })
+          .eq("id", leadId)
+          .is("booking_followup_sms_attempted_at", null)
+          .select("phone, full_name")
+          .maybeSingle();
+        if (claimError) throw claimError;
+        if (!claimed?.phone)
+          return Response.json(
+            { sent: false, reason: "already_attempted" },
+            { headers: corsHeaders },
+          );
+
+        const firstName =
+          String(claimed.full_name ?? "there")
+            .trim()
+            .split(/\s+/)[0] || "there";
+        const toPhone = toE164Phone(String(claimed.phone));
+        const body = bookingReminder(firstName);
+        try {
+          const message = await sendTwilioSms(toPhone, body);
+          const { error: communicationError } = await supabase.from("lead_communications").upsert(
+            {
+              lead_id: leadId,
+              twilio_message_sid: message.sid,
+              direction: "outbound",
+              channel: "sms",
+              from_phone: TWILIO_FROM_NUMBER,
+              to_phone: toPhone,
+              body,
+              status: message.status,
+              matching_status: "matched",
+              occurred_at: new Date().toISOString(),
+            },
+            { onConflict: "twilio_message_sid" },
+          );
+          if (communicationError) throw communicationError;
+          const { error: updateError } = await supabase
+            .from("leads")
+            .update({
+              booking_followup_sms_sent_at: new Date().toISOString(),
+              booking_followup_sms_status: "sent",
+              booking_followup_sms_sid: message.sid,
+            })
+            .eq("id", leadId);
+          if (updateError) throw updateError;
+          return Response.json({ sent: true, status: message.status }, { headers: corsHeaders });
+        } catch (error) {
+          await supabase
+            .from("leads")
+            .update({ booking_followup_sms_status: "failed" })
+            .eq("id", leadId);
+          throw error;
+        }
+      }
       if (payload.action === "resolve_verification") {
         const { id, field, source, reviewer, note } = payload;
         if (
