@@ -1595,6 +1595,7 @@ function CommunicationVerification({
   ) => Promise<void>;
 }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [activeSection, setActiveSection] = useState<"activity" | "verification">("activity");
   const timeline = useMemo(
     () =>
       [
@@ -1611,208 +1612,272 @@ function CommunicationVerification({
       ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
     [lead],
   );
+  const openReviews = (lead.answer_comparisons ?? []).filter(
+    (answer) => answer.status !== "match" && !answer.verification,
+  ).length;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_45px_-34px_rgba(15,23,42,0.4)] md:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Communication &amp; Verification
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Compare submitted answers with what the lead confirmed on the call.
-          </p>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-34px_rgba(15,23,42,0.4)]">
+      <div className="border-b border-slate-200 bg-slate-50/70 p-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button
+            onClick={() => setActiveSection("activity")}
+            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${activeSection === "activity" ? "border-emerald-200 bg-white text-emerald-800 shadow-[0_8px_20px_-15px_rgba(16,185,129,0.7)] ring-1 ring-emerald-100" : "border-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70"}`}
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className={`grid h-9 w-9 place-items-center rounded-lg ${activeSection === "activity" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200/70 text-slate-500"}`}
+              >
+                <MessageSquare className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">Activity</span>
+                <span className="block text-[11px] font-normal opacity-75">
+                  Calls, audio, texts and files
+                </span>
+              </span>
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+              {timeline.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveSection("verification")}
+            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${activeSection === "verification" ? "border-amber-200 bg-white text-amber-800 shadow-[0_8px_20px_-15px_rgba(245,158,11,0.65)] ring-1 ring-amber-100" : "border-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70"}`}
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className={`grid h-9 w-9 place-items-center rounded-lg ${activeSection === "verification" ? "bg-amber-100 text-amber-700" : "bg-slate-200/70 text-slate-500"}`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">Verification</span>
+                <span className="block text-[11px] font-normal opacity-75">
+                  Compare and approve answers
+                </span>
+              </span>
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${openReviews ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}
+            >
+              {openReviews}
+            </span>
+          </button>
         </div>
-        <label className="text-xs text-muted-foreground">
-          Reviewer
-          <input
-            value={reviewer}
-            onChange={(event) => setReviewer(event.target.value)}
-            className="ml-2 rounded-lg border border-border bg-background px-2 py-1 text-foreground"
-            aria-label="Reviewer name"
-          />
-        </label>
       </div>
 
-      <div className="mt-5 grid gap-3 xl:grid-cols-2">
-        {(lead.answer_comparisons ?? []).map((answer) => {
-          const busy = saving === `${lead.id}:${answer.field}`;
-          const statusMeta =
-            answer.status === "match"
-              ? {
-                  label: "Match",
-                  className: "border-green-200 bg-green-50 text-green-700",
-                  icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                }
-              : answer.status === "conflict"
-                ? {
-                    label: "Conflict",
-                    className: "border-red-200 bg-red-50 text-red-700",
-                    icon: <XCircle className="h-3.5 w-3.5" />,
-                  }
-                : {
-                    label: "Not confirmed",
-                    className: "border-amber-200 bg-amber-50 text-amber-700",
-                    icon: <AlertCircle className="h-3.5 w-3.5" />,
-                  };
-          return (
-            <div
-              key={answer.field}
-              className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.3)]"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">
-                  {VERIFICATION_LABELS[answer.field] ?? answer.field}
-                </p>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${statusMeta.className}`}
+      {activeSection === "verification" && (
+        <div className="p-4 md:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Answer verification</p>
+              <p className="text-xs text-slate-500">
+                Choose the trusted value only when the form and call differ.
+              </p>
+            </div>
+            <label className="text-xs text-slate-500">
+              Reviewer
+              <input
+                value={reviewer}
+                onChange={(event) => setReviewer(event.target.value)}
+                className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-slate-900"
+                aria-label="Reviewer name"
+              />
+            </label>
+          </div>
+          <div className="grid gap-3 xl:grid-cols-2">
+            {(lead.answer_comparisons ?? []).map((answer) => {
+              const busy = saving === `${lead.id}:${answer.field}`;
+              const statusMeta =
+                answer.status === "match"
+                  ? {
+                      label: "Match",
+                      className: "border-green-200 bg-green-50 text-green-700",
+                      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                    }
+                  : answer.status === "conflict"
+                    ? {
+                        label: "Conflict",
+                        className: "border-red-200 bg-red-50 text-red-700",
+                        icon: <XCircle className="h-3.5 w-3.5" />,
+                      }
+                    : {
+                        label: "Not confirmed",
+                        className: "border-amber-200 bg-amber-50 text-amber-700",
+                        icon: <AlertCircle className="h-3.5 w-3.5" />,
+                      };
+              return (
+                <div
+                  key={answer.field}
+                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.3)]"
                 >
-                  {statusMeta.icon} {statusMeta.label}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg bg-muted/30 p-2 text-sm">
-                  <span className="block text-[11px] uppercase text-muted-foreground">
-                    Form answer
-                  </span>
-                  {answerText(answer.form_value)}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {VERIFICATION_LABELS[answer.field] ?? answer.field}
+                    </p>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${statusMeta.className}`}
+                    >
+                      {statusMeta.icon} {statusMeta.label}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg bg-muted/30 p-2 text-sm">
+                      <span className="block text-[11px] uppercase text-muted-foreground">
+                        Form answer
+                      </span>
+                      {answerText(answer.form_value)}
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-2 text-sm">
+                      <span className="block text-[11px] uppercase text-muted-foreground">
+                        Call answer
+                      </span>
+                      {answerText(answer.call_value)}
+                    </div>
+                  </div>
+                  {answer.verification ? (
+                    <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+                      Verified as{" "}
+                      <strong className="capitalize">
+                        {answerText(answer.verification.verified_value)}
+                      </strong>{" "}
+                      by {answer.verification.reviewer} on{" "}
+                      {fmtDateTime(answer.verification.reviewed_at)}
+                      {answer.verification.note ? ` — ${answer.verification.note}` : ""}
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        value={notes[answer.field] ?? ""}
+                        onChange={(event) =>
+                          setNotes((current) => ({
+                            ...current,
+                            [answer.field]: event.target.value,
+                          }))
+                        }
+                        placeholder="Optional review note"
+                        className="min-w-[180px] flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+                      />
+                      <button
+                        disabled={busy || answer.form_value == null}
+                        onClick={() =>
+                          onResolve(lead.id, answer.field, "form", notes[answer.field] ?? "")
+                        }
+                        className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-40"
+                      >
+                        Use form
+                      </button>
+                      <button
+                        disabled={busy || answer.call_value == null}
+                        onClick={() =>
+                          onResolve(lead.id, answer.field, "call", notes[answer.field] ?? "")
+                        }
+                        className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                      >
+                        Use call
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="rounded-lg bg-muted/30 p-2 text-sm">
-                  <span className="block text-[11px] uppercase text-muted-foreground">
-                    Call answer
-                  </span>
-                  {answerText(answer.call_value)}
-                </div>
-              </div>
-              {answer.verification ? (
-                <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-2 text-xs text-green-800">
-                  Verified as{" "}
-                  <strong className="capitalize">
-                    {answerText(answer.verification.verified_value)}
-                  </strong>{" "}
-                  by {answer.verification.reviewer} on{" "}
-                  {fmtDateTime(answer.verification.reviewed_at)}
-                  {answer.verification.note ? ` — ${answer.verification.note}` : ""}
-                </div>
-              ) : (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <input
-                    value={notes[answer.field] ?? ""}
-                    onChange={(event) =>
-                      setNotes((current) => ({ ...current, [answer.field]: event.target.value }))
-                    }
-                    placeholder="Optional review note"
-                    className="min-w-[180px] flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
-                  />
-                  <button
-                    disabled={busy || answer.form_value == null}
-                    onClick={() =>
-                      onResolve(lead.id, answer.field, "form", notes[answer.field] ?? "")
-                    }
-                    className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-40"
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "activity" && (
+        <div className="p-4 md:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Communication timeline</p>
+              <p className="text-xs text-slate-500">Newest calls and messages appear first.</p>
+            </div>
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+              {timeline.length} activities
+            </span>
+          </div>
+          {timeline.length === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              No calls or messages have been saved yet.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-3">
+              {timeline.map((event) =>
+                event.kind === "message" ? (
+                  <div
+                    key={`message-${event.item.id}`}
+                    className={`rounded-xl border p-3 shadow-sm ${event.item.direction === "outbound" ? "ml-6 border-emerald-200 bg-emerald-50/70" : "mr-6 border-slate-200 bg-slate-50/70"}`}
                   >
-                    Use form
-                  </button>
-                  <button
-                    disabled={busy || answer.call_value == null}
-                    onClick={() =>
-                      onResolve(lead.id, answer.field, "call", notes[answer.field] ?? "")
-                    }
-                    className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                    <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="capitalize">
+                        {event.item.direction} {event.item.channel}
+                      </span>
+                      <span>
+                        {fmtDateTime(event.at)} · {event.item.status}
+                      </span>
+                    </div>
+                    {event.item.body && <MessageBody body={event.item.body} />}
+                    {event.item.error_message && (
+                      <p className="mt-2 text-xs text-red-600">{event.item.error_message}</p>
+                    )}
+                    {(lead.credit_screenshots ?? [])
+                      .filter((shot) => shot.twilio_message_sid === event.item.twilio_message_sid)
+                      .map((shot) =>
+                        shot.signed_url ? (
+                          <a
+                            key={shot.id}
+                            href={shot.signed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-block"
+                          >
+                            <img
+                              src={shot.signed_url}
+                              alt="MMS attachment"
+                              className="max-h-44 rounded-lg border border-border"
+                            />
+                          </a>
+                        ) : null,
+                      )}
+                  </div>
+                ) : (
+                  <div
+                    key={`call-${event.item.retell_call_id}`}
+                    className="rounded-xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/60 p-4 text-slate-900 shadow-[0_12px_30px_-22px_rgba(16,185,129,0.45)]"
                   >
-                    Use call
-                  </button>
-                </div>
+                    <div className="flex flex-wrap justify-between gap-2 text-xs font-medium text-emerald-700">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Headphones className="h-3.5 w-3.5" />
+                        Call recording · {fmtDuration(event.item.duration_ms)}
+                      </span>
+                      <span>{fmtDateTime(event.at)}</span>
+                    </div>
+                    {event.item.call_summary && (
+                      <p className="mt-2 text-sm">{event.item.call_summary}</p>
+                    )}
+                    {event.item.recording_url && (
+                      <audio controls preload="metadata" className="mt-3 w-full">
+                        <source src={event.item.recording_url} />
+                      </audio>
+                    )}
+                    {event.item.transcript && (
+                      <details className="mt-3 rounded-lg border border-emerald-100 bg-white p-2">
+                        <summary className="cursor-pointer text-xs font-medium uppercase text-emerald-700">
+                          Call transcript
+                        </summary>
+                        <p className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                          {event.item.transcript}
+                        </p>
+                      </details>
+                    )}
+                  </div>
+                ),
               )}
             </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-5 border-t border-border pt-4">
-        <p className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-          <MessageSquare className="h-4 w-4" /> Communication timeline
-        </p>
-        {timeline.length === 0 ? (
-          <p className="py-4 text-sm text-muted-foreground">
-            No calls or messages have been saved yet.
-          </p>
-        ) : (
-          <div className="mt-3 grid gap-3">
-            {timeline.map((event) =>
-              event.kind === "message" ? (
-                <div
-                  key={`message-${event.item.id}`}
-                  className={`rounded-xl border p-3 shadow-sm ${event.item.direction === "outbound" ? "ml-6 border-emerald-200 bg-emerald-50/70" : "mr-6 border-slate-200 bg-slate-50/70"}`}
-                >
-                  <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="capitalize">
-                      {event.item.direction} {event.item.channel}
-                    </span>
-                    <span>
-                      {fmtDateTime(event.at)} · {event.item.status}
-                    </span>
-                  </div>
-                  {event.item.body && <MessageBody body={event.item.body} />}
-                  {event.item.error_message && (
-                    <p className="mt-2 text-xs text-red-600">{event.item.error_message}</p>
-                  )}
-                  {(lead.credit_screenshots ?? [])
-                    .filter((shot) => shot.twilio_message_sid === event.item.twilio_message_sid)
-                    .map((shot) =>
-                      shot.signed_url ? (
-                        <a
-                          key={shot.id}
-                          href={shot.signed_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-block"
-                        >
-                          <img
-                            src={shot.signed_url}
-                            alt="MMS attachment"
-                            className="max-h-44 rounded-lg border border-border"
-                          />
-                        </a>
-                      ) : null,
-                    )}
-                </div>
-              ) : (
-                <div
-                  key={`call-${event.item.retell_call_id}`}
-                  className="rounded-xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/60 p-4 text-slate-900 shadow-[0_12px_30px_-22px_rgba(16,185,129,0.45)]"
-                >
-                  <div className="flex flex-wrap justify-between gap-2 text-xs font-medium text-emerald-700">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Headphones className="h-3.5 w-3.5" />
-                      Call recording · {fmtDuration(event.item.duration_ms)}
-                    </span>
-                    <span>{fmtDateTime(event.at)}</span>
-                  </div>
-                  {event.item.call_summary && (
-                    <p className="mt-2 text-sm">{event.item.call_summary}</p>
-                  )}
-                  {event.item.recording_url && (
-                    <audio controls preload="metadata" className="mt-3 w-full">
-                      <source src={event.item.recording_url} />
-                    </audio>
-                  )}
-                  {event.item.transcript && (
-                    <details className="mt-3 rounded-lg border border-emerald-100 bg-white p-2">
-                      <summary className="cursor-pointer text-xs font-medium uppercase text-emerald-700">
-                        Call transcript
-                      </summary>
-                      <p className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
-                        {event.item.transcript}
-                      </p>
-                    </details>
-                  )}
-                </div>
-              ),
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
