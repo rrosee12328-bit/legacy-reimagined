@@ -7,6 +7,12 @@ const FROM = "Scale to Legacy <info@scaletolegacynow.com>";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+function normalizePhone(value: unknown) {
+  return String(value ?? "")
+    .replace(/\D/g, "")
+    .slice(-10);
+}
+
 // ─── Email templates ──────────────────────────────────────────────────────────
 
 function wrapEmail(body: string): string {
@@ -149,7 +155,7 @@ serve(async (req) => {
     // Only process invitee.created (new booking)
     if (eventType !== "invitee.created" && !event.invitee) {
       return new Response(JSON.stringify({ skipped: true, event: eventType }), {
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -160,35 +166,77 @@ serve(async (req) => {
     const email = invitee.email ?? "";
     const phone = invitee.text_reminder_number ?? null;
     const rawTrackedLeadId = invitee.tracking?.utm_content ?? null;
-    const trackedLeadId =
+    let trackedLeadId =
       typeof rawTrackedLeadId === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         rawTrackedLeadId,
       )
         ? rawTrackedLeadId
         : null;
+
+    // Tracking is authoritative. For direct Calendly visits, attach only when
+    // an exact email or phone identifies one unique lead.
+    if (trackedLeadId) {
+      const tracked = await supabase
+        .from("leads")
+        .select("id")
+        .eq("id", trackedLeadId)
+        .maybeSingle();
+      if (!tracked.data) trackedLeadId = null;
+    }
+    if (!trackedLeadId) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const phoneDigits = normalizePhone(phone);
+      const { data: recentLeads, error: matchError } = await supabase
+        .from("leads")
+        .select("id, email, phone")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (matchError) throw matchError;
+      const matches = (recentLeads ?? []).filter(
+        (lead) =>
+          (normalizedEmail &&
+            String(lead.email ?? "")
+              .trim()
+              .toLowerCase() === normalizedEmail) ||
+          (phoneDigits && normalizePhone(lead.phone) === phoneDigits),
+      );
+      if (matches.length === 1) trackedLeadId = matches[0].id;
+    }
     const startTime = new Date(scheduledEvent.start_time ?? scheduledEvent.start ?? new Date());
     const endTime = scheduledEvent.end_time ? new Date(scheduledEvent.end_time) : null;
     const eventName = scheduledEvent.name ?? "Strategy Session";
-    const calendlyEventId = scheduledEvent.uri ?? scheduledEvent.uuid ?? `${email}-${startTime.toISOString()}`;
+    const calendlyEventId =
+      scheduledEvent.uri ?? scheduledEvent.uuid ?? `${email}-${startTime.toISOString()}`;
 
-    const dayStr = startTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-    const timeStr = startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const dayStr = startTime.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    const timeStr = startTime.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
 
     // Insert booking record
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .upsert({
-        calendly_event_id: calendlyEventId,
-        invitee_name: name,
-        invitee_email: email,
-        invitee_phone: phone,
-        event_start_time: startTime.toISOString(),
-        event_end_time: endTime?.toISOString() ?? null,
-        event_name: eventName,
-        status: "confirmed",
-        lead_id: trackedLeadId,
-      }, { onConflict: "calendly_event_id" })
+      .upsert(
+        {
+          calendly_event_id: calendlyEventId,
+          invitee_name: name,
+          invitee_email: email,
+          invitee_phone: phone,
+          event_start_time: startTime.toISOString(),
+          event_end_time: endTime?.toISOString() ?? null,
+          event_name: eventName,
+          status: "confirmed",
+          lead_id: trackedLeadId,
+        },
+        { onConflict: "calendly_event_id" },
+      )
       .select()
       .single();
 
@@ -203,6 +251,24 @@ serve(async (req) => {
         })
         .eq("id", trackedLeadId);
       if (leadError) throw new Error(`Lead booking update failed: ${leadError.message}`);
+      const { error: cancelError } = await supabase
+        .from("lead_followup_sequence")
+        .update({
+          status: "cancelled_booked",
+          cancellation_reason: "Calendly booking confirmed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("lead_id", trackedLeadId)
+        .in("status", ["pending", "processing"]);
+      if (cancelError) throw new Error(`Follow-up cancellation failed: ${cancelError.message}`);
+      await supabase
+        .from("leads")
+        .update({
+          booking_sequence_status: "cancelled_booked",
+          booking_sequence_next_at: null,
+          manual_follow_up_needed: false,
+        })
+        .eq("id", trackedLeadId);
     }
 
     const bookingId = booking.id;
@@ -210,14 +276,39 @@ serve(async (req) => {
 
     // Schedule all 7 emails
     const schedules = [
-      { num: 1, delay: 0,           subject: `locked in for ${dayStr}`,           html: email1(name, dayStr, timeStr) },
-      { num: 2, delay: 86400,       subject: "the number most people don't know",  html: email2(name, dayStr, timeStr) },
-      { num: 3, delay: 172800,      subject: "they had no idea this was possible", html: email3(name, dayStr, timeStr) },
-      { num: 4, delay: 259200,      subject: "something on my mind",               html: email4(name, dayStr, timeStr) },
-      { num: 5, delay: 345600,      subject: "three things that block business funding", html: email5(name, dayStr, timeStr) },
-      { num: 6, delay: 432000,      subject: "what I'll want to know",             html: email6(name, dayStr, timeStr) },
+      { num: 1, delay: 0, subject: `locked in for ${dayStr}`, html: email1(name, dayStr, timeStr) },
+      {
+        num: 2,
+        delay: 86400,
+        subject: "the number most people don't know",
+        html: email2(name, dayStr, timeStr),
+      },
+      {
+        num: 3,
+        delay: 172800,
+        subject: "they had no idea this was possible",
+        html: email3(name, dayStr, timeStr),
+      },
+      {
+        num: 4,
+        delay: 259200,
+        subject: "something on my mind",
+        html: email4(name, dayStr, timeStr),
+      },
+      {
+        num: 5,
+        delay: 345600,
+        subject: "three things that block business funding",
+        html: email5(name, dayStr, timeStr),
+      },
+      {
+        num: 6,
+        delay: 432000,
+        subject: "what I'll want to know",
+        html: email6(name, dayStr, timeStr),
+      },
       // Email 7: morning of the call (9am on event day, or 2 hours before if less than 9am)
-      { num: 7, delay: -1,          subject: `today at ${timeStr}`,                html: email7(name, dayStr, timeStr) },
+      { num: 7, delay: -1, subject: `today at ${timeStr}`, html: email7(name, dayStr, timeStr) },
     ];
 
     const emailRows = schedules.map((s) => {
@@ -244,13 +335,27 @@ serve(async (req) => {
       };
     });
 
-    const { error: scheduleError } = await supabase.from("scheduled_emails").insert(emailRows);
-    if (scheduleError) throw new Error(`Schedule insert failed: ${scheduleError.message}`);
+    const { count: existingEmailCount, error: existingEmailError } = await supabase
+      .from("scheduled_emails")
+      .select("id", { count: "exact", head: true })
+      .eq("booking_id", bookingId);
+    if (existingEmailError)
+      throw new Error(`Email idempotency check failed: ${existingEmailError.message}`);
+    if ((existingEmailCount ?? 0) === 0) {
+      const { error: scheduleError } = await supabase.from("scheduled_emails").insert(emailRows);
+      if (scheduleError) throw new Error(`Schedule insert failed: ${scheduleError.message}`);
+    }
 
-    return new Response(JSON.stringify({ success: true, booking_id: bookingId, emails_scheduled: emailRows.length }), {
-      headers: { "Content-Type": "application/json" }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        booking_id: bookingId,
+        emails_scheduled: (existingEmailCount ?? 0) === 0 ? emailRows.length : 0,
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     console.error(err);
     return new Response(JSON.stringify({ error: String(err) }), { status: 500 });

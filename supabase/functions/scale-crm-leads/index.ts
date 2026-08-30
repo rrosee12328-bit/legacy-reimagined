@@ -160,44 +160,58 @@ Deno.serve(async (request) => {
         .order("created_at", { ascending: false });
       if (leadsError) throw leadsError;
       const leadIds = (leads ?? []).map((lead) => lead.id);
-      const [callsResult, screenshotsResult, communicationsResult, verificationsResult] =
-        await Promise.all([
-          leadIds.length
-            ? supabase
-                .from("lead_call_evidence")
-                .select("*")
-                .in("lead_id", leadIds)
-                .order("captured_at", { ascending: false })
-            : Promise.resolve({ data: [], error: null }),
-          leadIds.length
-            ? supabase
-                .from("lead_credit_evidence")
-                .select("id, lead_id, twilio_message_sid, storage_path, content_type, received_at")
-                .in("lead_id", leadIds)
-                .order("received_at", { ascending: false })
-            : Promise.resolve({ data: [], error: null }),
-          leadIds.length
-            ? supabase
-                .from("lead_communications")
-                .select("*")
-                .in("lead_id", leadIds)
-                .order("occurred_at", { ascending: true })
-            : Promise.resolve({ data: [], error: null }),
-          leadIds.length
-            ? supabase.from("lead_answer_verifications").select("*").in("lead_id", leadIds)
-            : Promise.resolve({ data: [], error: null }),
-        ]);
+      const [
+        callsResult,
+        screenshotsResult,
+        communicationsResult,
+        verificationsResult,
+        sequenceResult,
+      ] = await Promise.all([
+        leadIds.length
+          ? supabase
+              .from("lead_call_evidence")
+              .select("*")
+              .in("lead_id", leadIds)
+              .order("captured_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        leadIds.length
+          ? supabase
+              .from("lead_credit_evidence")
+              .select("id, lead_id, twilio_message_sid, storage_path, content_type, received_at")
+              .in("lead_id", leadIds)
+              .order("received_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        leadIds.length
+          ? supabase
+              .from("lead_communications")
+              .select("*")
+              .in("lead_id", leadIds)
+              .order("occurred_at", { ascending: true })
+          : Promise.resolve({ data: [], error: null }),
+        leadIds.length
+          ? supabase.from("lead_answer_verifications").select("*").in("lead_id", leadIds)
+          : Promise.resolve({ data: [], error: null }),
+        leadIds.length
+          ? supabase
+              .from("lead_followup_sequence")
+              .select("*")
+              .in("lead_id", leadIds)
+              .order("step_number", { ascending: true })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
       if (
         callsResult.error ||
         screenshotsResult.error ||
         communicationsResult.error ||
-        verificationsResult.error
+        verificationsResult.error ||
+        sequenceResult.error
       ) {
         throw (
           callsResult.error ??
           screenshotsResult.error ??
           communicationsResult.error ??
-          verificationsResult.error
+          verificationsResult.error ??
+          sequenceResult.error
         );
       }
       const screenshots = screenshotsResult.data ?? [];
@@ -225,6 +239,10 @@ Deno.serve(async (request) => {
       );
       const verificationByLead = group(
         (verificationsResult.data ?? []) as Array<Record<string, unknown>>,
+        "lead_id",
+      );
+      const sequenceByLead = group(
+        (sequenceResult.data ?? []) as Array<Record<string, unknown>>,
         "lead_id",
       );
       const screenshotsByLead = group(
@@ -299,6 +317,7 @@ Deno.serve(async (request) => {
               communications: communicationsByLead.get(lead.id) ?? [],
               credit_screenshots: screenshotsByLead.get(lead.id) ?? [],
               answer_comparisons: comparisons,
+              followup_sequence: sequenceByLead.get(lead.id) ?? [],
             };
           }),
         },
@@ -308,6 +327,59 @@ Deno.serve(async (request) => {
 
     if (request.method === "PATCH") {
       const payload = await request.json();
+      if (payload.action === "cancel_followup_sequence") {
+        const leadId = String(payload.id ?? "");
+        if (!leadId) return new Response("Missing lead id", { status: 400, headers: corsHeaders });
+        const { error: cancelError } = await supabase
+          .from("lead_followup_sequence")
+          .update({
+            status: "cancelled_manual",
+            cancellation_reason: "Cancelled by CRM user",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("lead_id", leadId)
+          .in("status", ["pending", "processing"]);
+        if (cancelError) throw cancelError;
+        const { error: leadError } = await supabase
+          .from("leads")
+          .update({
+            booking_sequence_status: "cancelled_manual",
+            booking_sequence_next_at: null,
+          })
+          .eq("id", leadId);
+        if (leadError) throw leadError;
+        return Response.json({ cancelled: true }, { headers: corsHeaders });
+      }
+      if (["pause_followup_sequence", "resume_followup_sequence"].includes(payload.action)) {
+        const leadId = String(payload.id ?? "");
+        if (!leadId) return new Response("Missing lead id", { status: 400, headers: corsHeaders });
+        const pause = payload.action === "pause_followup_sequence";
+        const { error: sequenceError } = await supabase
+          .from("lead_followup_sequence")
+          .update({ status: pause ? "paused" : "pending", updated_at: new Date().toISOString() })
+          .eq("lead_id", leadId)
+          .eq("status", pause ? "pending" : "paused");
+        if (sequenceError) throw sequenceError;
+        const { data: next } = await supabase
+          .from("lead_followup_sequence")
+          .select("scheduled_at")
+          .eq("lead_id", leadId)
+          .eq("status", pause ? "paused" : "pending")
+          .order("step_number")
+          .limit(1)
+          .maybeSingle();
+        const { error: leadError } = await supabase
+          .from("leads")
+          .update({
+            booking_sequence_status: pause ? "paused" : "active",
+            booking_sequence_next_at: pause
+              ? null
+              : (next?.scheduled_at ?? new Date().toISOString()),
+          })
+          .eq("id", leadId);
+        if (leadError) throw leadError;
+        return Response.json({ status: pause ? "paused" : "active" }, { headers: corsHeaders });
+      }
       if (payload.action === "send_booking_reminder") {
         const leadId = String(payload.id ?? "");
         if (!leadId) return new Response("Missing lead id", { status: 400, headers: corsHeaders });
@@ -459,9 +531,7 @@ Deno.serve(async (request) => {
           .from("lead_credit_evidence")
           .select("storage_path")
           .in("lead_id", leadIds);
-        const storagePaths = (evidence ?? [])
-          .map((item) => item.storage_path)
-          .filter(Boolean);
+        const storagePaths = (evidence ?? []).map((item) => item.storage_path).filter(Boolean);
         if (storagePaths.length) {
           await supabase.storage.from("lead-credit-screenshots").remove(storagePaths);
         }

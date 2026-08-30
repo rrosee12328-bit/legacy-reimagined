@@ -109,6 +109,15 @@ interface CreditScreenshot {
   twilio_message_sid?: string;
 }
 
+interface FollowupStep {
+  id: string;
+  step_number: number;
+  scheduled_at: string;
+  status: string;
+  sent_at?: string | null;
+  cancellation_reason?: string | null;
+}
+
 interface Lead {
   id: string;
   created_at: string;
@@ -141,6 +150,11 @@ interface Lead {
   communications?: Communication[];
   answer_comparisons?: AnswerComparison[];
   credit_screenshots?: CreditScreenshot[];
+  followup_sequence?: FollowupStep[];
+  booking_sequence_status?: string;
+  booking_sequence_next_at?: string;
+  booking_sequence_step?: number;
+  manual_follow_up_needed?: boolean;
 }
 
 type View = "dashboard" | "leads" | "analytics";
@@ -1804,6 +1818,45 @@ function CommunicationVerification({
 
       {activeSection === "activity" && (
         <div className="p-4 md:p-5">
+          {(lead.followup_sequence?.length ?? 0) > 0 && (
+            <div className="mb-4 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-4 shadow-[0_10px_25px_-20px_rgba(8,145,178,0.8)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-cyan-950">Calendly follow-up sequence</p>
+                  <p className="text-xs text-cyan-700">
+                    {lead.booking_sequence_status === "active" && lead.booking_sequence_next_at
+                      ? `Next booking check and reminder: ${fmtDateTime(lead.booking_sequence_next_at)}`
+                      : lead.manual_follow_up_needed
+                        ? "Automated reminders complete — manual follow-up needed"
+                        : `Status: ${(lead.booking_sequence_status ?? "pending").replaceAll("_", " ")}`}
+                  </p>
+                </div>
+                {lead.manual_follow_up_needed && (
+                  <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                    Manual follow-up needed
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(lead.followup_sequence ?? []).map((step) => (
+                  <div
+                    key={step.id}
+                    className="rounded-lg border border-white/80 bg-white/80 px-3 py-2"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-cyan-700">
+                      Touch {step.step_number}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium capitalize text-slate-800">
+                      {step.status.replaceAll("_", " ")}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">
+                      {fmtDateTime(step.sent_at ?? step.scheduled_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-slate-900">Communication timeline</p>

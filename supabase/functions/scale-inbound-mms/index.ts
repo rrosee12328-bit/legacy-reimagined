@@ -113,6 +113,22 @@ Deno.serve(async (request) => {
         .update({ sms_opted_out: true })
         .eq("id", lead.id);
       if (error) throw error;
+      await supabase
+        .from("lead_followup_sequence")
+        .update({
+          status: "cancelled_opt_out",
+          cancellation_reason: "Lead replied with an opt-out keyword",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("lead_id", lead.id)
+        .in("status", ["pending", "processing"]);
+      await supabase
+        .from("leads")
+        .update({
+          booking_sequence_status: "cancelled_opt_out",
+          booking_sequence_next_at: null,
+        })
+        .eq("id", lead.id);
     }
 
     if (mediaCount < 1 || !lead) return twimlResponse();

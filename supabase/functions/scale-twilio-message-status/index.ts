@@ -39,10 +39,11 @@ Deno.serve(async (request) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  const messageStatus = params.get("MessageStatus") ?? params.get("SmsStatus") ?? "unknown";
   const { error } = await supabase
     .from("lead_communications")
     .update({
-      status: params.get("MessageStatus") ?? params.get("SmsStatus") ?? "unknown",
+      status: messageStatus,
       error_code: params.get("ErrorCode") || null,
       error_message: params.get("ErrorMessage") || null,
       updated_at: new Date().toISOString(),
@@ -51,6 +52,23 @@ Deno.serve(async (request) => {
   if (error) {
     console.error(error);
     return new Response("Could not update message", { status: 500 });
+  }
+  const sequenceStatus =
+    messageStatus === "delivered"
+      ? "delivered"
+      : ["failed", "undelivered"].includes(messageStatus)
+        ? "failed"
+        : null;
+  if (sequenceStatus) {
+    const { error: sequenceError } = await supabase
+      .from("lead_followup_sequence")
+      .update({
+        status: sequenceStatus,
+        last_error: params.get("ErrorMessage") || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("twilio_message_sid", sid);
+    if (sequenceError) console.error(sequenceError);
   }
   return new Response(null, { status: 204 });
 });

@@ -152,6 +152,66 @@ async function sendUnbookedFollowUp(supabase: ReturnType<typeof createClient>, l
   }
 }
 
+async function enrollBookingSequence(
+  supabase: ReturnType<typeof createClient>,
+  leadId: string,
+  qualificationStatus: string,
+) {
+  const { data: lead, error } = await supabase
+    .from("leads")
+    .select(
+      "id, source, credit_score, utilization, sms_contact_consent, sms_opted_out, calendar_booked_at, booking_followup_sms_attempted_at",
+    )
+    .eq("id", leadId)
+    .single();
+  if (error) throw error;
+  if (
+    lead.source !== "qualify_form" ||
+    !qualifyingScores.has(String(lead.credit_score)) ||
+    !qualifyingUtilization.has(String(lead.utilization)) ||
+    !lead.sms_contact_consent ||
+    lead.sms_opted_out ||
+    lead.calendar_booked_at ||
+    qualificationStatus === "not_qualified" ||
+    // Existing one-time reminders, including Nate and Jennifer, are historical
+    // sends and must not silently start a new four-touch sequence.
+    lead.booking_followup_sms_attempted_at
+  )
+    return;
+
+  const { count, error: bookingError } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("lead_id", leadId)
+    .eq("status", "confirmed");
+  if (bookingError) throw bookingError;
+  if ((count ?? 0) > 0) return;
+
+  const now = Date.now();
+  const delays = [0, 24, 72, 168].map((hours) => hours * 60 * 60 * 1000);
+  const rows = delays.map((delay, index) => ({
+    lead_id: leadId,
+    sequence_key: "calendly_booking",
+    step_number: index + 1,
+    scheduled_at: new Date(now + delay).toISOString(),
+    status: "pending",
+  }));
+  const { error: insertError } = await supabase
+    .from("lead_followup_sequence")
+    .upsert(rows, { onConflict: "lead_id,sequence_key,step_number", ignoreDuplicates: true });
+  if (insertError) throw insertError;
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({
+      booking_sequence_status: "active",
+      booking_sequence_step: 0,
+      booking_sequence_next_at: rows[0].scheduled_at,
+      manual_follow_up_needed: false,
+    })
+    .eq("id", leadId);
+  if (updateError) throw updateError;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -230,7 +290,10 @@ Deno.serve(async (request) => {
         })
         .eq("id", leadId);
       if (unansweredError) throw unansweredError;
-      if (payload.event === "call_ended") return new Response(null, { status: 204 });
+      if (payload.event === "call_ended") {
+        await enrollBookingSequence(supabase, leadId, "unanswered");
+        return new Response(null, { status: 204 });
+      }
     }
 
     if (call.disconnection_reason === "voicemail_reached") {
@@ -248,7 +311,7 @@ Deno.serve(async (request) => {
       // The agent leaves a short voicemail, then this webhook sends the
       // consented booking follow-up without waiting for post-call analysis.
       if (payload.event === "call_ended") {
-        await sendUnbookedFollowUp(supabase, leadId);
+        await enrollBookingSequence(supabase, leadId, "unconfirmed");
       }
       return new Response(null, { status: 204 });
     }
@@ -288,7 +351,7 @@ Deno.serve(async (request) => {
     // unexpected qualification label. sendUnbookedFollowUp rechecks consent,
     // opt-out, original eligibility, booking state, and idempotency.
     if (!["unanswered", "not_qualified"].includes(qualificationStatus)) {
-      await sendUnbookedFollowUp(supabase, leadId);
+      await enrollBookingSequence(supabase, leadId, qualificationStatus);
     }
     return new Response(null, { status: 204 });
   } catch (error) {

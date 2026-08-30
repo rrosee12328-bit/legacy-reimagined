@@ -36,6 +36,22 @@ Deno.serve(async (request) => {
       .update({ sms_opted_out: true })
       .in("id", matchingIds);
     if (updateError) throw updateError;
+    await supabase
+      .from("lead_followup_sequence")
+      .update({
+        status: "cancelled_opt_out",
+        cancellation_reason: "Lead opted out",
+        updated_at: new Date().toISOString(),
+      })
+      .in("lead_id", matchingIds)
+      .in("status", ["pending", "processing"]);
+    await supabase
+      .from("leads")
+      .update({
+        booking_sequence_status: "cancelled_opt_out",
+        booking_sequence_next_at: null,
+      })
+      .in("id", matchingIds);
     return Response.json({ updated: matchingIds.length });
   } catch (error) {
     console.error(error);

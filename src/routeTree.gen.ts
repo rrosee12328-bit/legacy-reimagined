@@ -9,25 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ThankYouRouteImport } from './routes/thank-you'
-import { Route as NotQualifiedRouteImport } from './routes/not-qualified'
-import { Route as BookRouteImport } from './routes/book'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as BookRouteImport } from './routes/book'
+import { Route as NotQualifiedRouteImport } from './routes/not-qualified'
+import { Route as ThankYouRouteImport } from './routes/thank-you'
 
-const ThankYouRoute = ThankYouRouteImport.update({
-  id: '/thank-you',
-  path: '/thank-you',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotQualifiedRoute = NotQualifiedRouteImport.update({
-  id: '/not-qualified',
-  path: '/not-qualified',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookRoute = BookRouteImport.update({
-  id: '/book',
-  path: '/book',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -35,9 +25,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const BookRoute = BookRouteImport.update({
+  id: '/book',
+  path: '/book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotQualifiedRoute = NotQualifiedRouteImport.update({
+  id: '/not-qualified',
+  path: '/not-qualified',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ThankYouRoute = ThankYouRouteImport.update({
+  id: '/thank-you',
+  path: '/thank-you',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -81,25 +81,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/thank-you': {
-      id: '/thank-you'
-      path: '/thank-you'
-      fullPath: '/thank-you'
-      preLoaderRoute: typeof ThankYouRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/not-qualified': {
-      id: '/not-qualified'
-      path: '/not-qualified'
-      fullPath: '/not-qualified'
-      preLoaderRoute: typeof NotQualifiedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/book': {
-      id: '/book'
-      path: '/book'
-      fullPath: '/book'
-      preLoaderRoute: typeof BookRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -109,11 +95,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/book': {
+      id: '/book'
+      path: '/book'
+      fullPath: '/book'
+      preLoaderRoute: typeof BookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/not-qualified': {
+      id: '/not-qualified'
+      path: '/not-qualified'
+      fullPath: '/not-qualified'
+      preLoaderRoute: typeof NotQualifiedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/thank-you': {
+      id: '/thank-you'
+      path: '/thank-you'
+      fullPath: '/thank-you'
+      preLoaderRoute: typeof ThankYouRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

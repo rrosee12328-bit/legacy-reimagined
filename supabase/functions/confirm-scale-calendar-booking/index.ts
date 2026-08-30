@@ -30,6 +30,25 @@ Deno.serve(async (request) => {
       .select("id")
       .maybeSingle();
     if (error) throw error;
+    if (data?.id) {
+      await supabase
+        .from("lead_followup_sequence")
+        .update({
+          status: "cancelled_booked",
+          cancellation_reason: "Calendly embed confirmation",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("lead_id", data.id)
+        .in("status", ["pending", "processing"]);
+      await supabase
+        .from("leads")
+        .update({
+          booking_sequence_status: "cancelled_booked",
+          booking_sequence_next_at: null,
+          manual_follow_up_needed: false,
+        })
+        .eq("id", data.id);
+    }
     return Response.json({ confirmed: Boolean(data) }, { headers: corsHeaders });
   } catch (error) {
     console.error(error);
