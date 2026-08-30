@@ -21,7 +21,7 @@ const verificationFields = new Set([
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://scaletolegacynow.com",
   "Access-Control-Allow-Headers": "content-type, x-scale-crm-password",
-  "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, PATCH, DELETE, OPTIONS",
   "Content-Type": "application/json",
 };
 
