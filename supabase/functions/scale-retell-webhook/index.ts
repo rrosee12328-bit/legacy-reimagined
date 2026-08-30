@@ -38,6 +38,12 @@ function toE164Phone(value: string) {
   return trimmed;
 }
 
+function phoneDigits(value: unknown) {
+  return String(value ?? "")
+    .replace(/\D/g, "")
+    .slice(-10);
+}
+
 async function sendTwilioSms(to: string, body: string) {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
@@ -164,14 +170,29 @@ Deno.serve(async (request) => {
       return new Response(null, { status: 204 });
     }
 
-    const call = payload.call ?? {};
-    const leadId = call.metadata?.lead_id;
-    if (!leadId) return new Response(null, { status: 204 });
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const call = payload.call ?? {};
+    let leadId = call.metadata?.lead_id;
+    if (!leadId) {
+      const callPhone = phoneDigits(
+        call.to_number ??
+          call.retell_llm_dynamic_variables?.lead_phone ??
+          call.call_inbound?.from_number,
+      );
+      if (callPhone) {
+        const { data: candidates, error: candidateError } = await supabase
+          .from("leads")
+          .select("id, phone")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (candidateError) throw candidateError;
+        leadId = candidates?.find((lead) => phoneDigits(lead.phone) === callPhone)?.id;
+      }
+    }
+    if (!leadId) return new Response(null, { status: 204 });
 
     if (call.call_id) {
       const baseAnalysis = call.call_analysis ?? {};

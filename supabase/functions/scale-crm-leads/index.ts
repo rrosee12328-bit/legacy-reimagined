@@ -194,6 +194,53 @@ Deno.serve(async (request) => {
         "lead_id",
       );
 
+      // Recover calls whose webhook delivery was missed. Retell still retains
+      // the transcript and recording, so a protected CRM read can repair the
+      // evidence record without exposing the Retell API key to the browser.
+      const retellKey = Deno.env.get("RETELL_API_KEY");
+      if (retellKey) {
+        await Promise.all(
+          (leads ?? []).map(async (lead) => {
+            const callId = String(lead.retell_call_id ?? "");
+            if (!callId || (callsByLead.get(lead.id)?.length ?? 0) > 0) return;
+            try {
+              const response = await fetch(`https://api.retellai.com/v2/get-call/${callId}`, {
+                headers: { Authorization: `Bearer ${retellKey}` },
+              });
+              if (!response.ok) return;
+              const call = await response.json();
+              const analysis = call.call_analysis ?? {};
+              const evidence = {
+                lead_id: lead.id,
+                retell_call_id: call.call_id ?? callId,
+                transcript: call.transcript ?? null,
+                recording_url: call.recording_url ?? null,
+                recording_multi_channel_url: call.recording_multi_channel_url ?? null,
+                duration_ms: call.duration_ms ?? null,
+                disconnection_reason: call.disconnection_reason ?? null,
+                call_summary: analysis.call_summary ?? null,
+                analysis_data:
+                  analysis.custom_analysis_data?.scale_qualification ??
+                  analysis.custom_analysis_data ??
+                  {},
+                captured_at: call.start_timestamp
+                  ? new Date(Number(call.start_timestamp)).toISOString()
+                  : new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+              const { data: saved } = await supabase
+                .from("lead_call_evidence")
+                .upsert(evidence, { onConflict: "retell_call_id" })
+                .select("*")
+                .single();
+              callsByLead.set(lead.id, [saved ?? evidence]);
+            } catch (error) {
+              console.error("Unable to recover Retell call", callId, error);
+            }
+          }),
+        );
+      }
+
       return Response.json(
         {
           leads: (leads ?? []).map((lead) => {
