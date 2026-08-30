@@ -323,6 +323,38 @@ Deno.serve(async (request) => {
         return Response.json({ ok: true }, { headers: corsHeaders });
       }
 
+      if (payload.action === "delete_leads") {
+        const ids: unknown[] = Array.isArray(payload.ids) ? payload.ids : [];
+        const leadIds = ids.map(String).filter(Boolean);
+        if (!leadIds.length) {
+          return new Response("No lead ids provided", { status: 400, headers: corsHeaders });
+        }
+        // Remove dependent records first, then the leads themselves.
+        const { data: evidence } = await supabase
+          .from("lead_credit_evidence")
+          .select("storage_path")
+          .in("lead_id", leadIds);
+        const storagePaths = (evidence ?? [])
+          .map((item) => item.storage_path)
+          .filter(Boolean);
+        if (storagePaths.length) {
+          await supabase.storage.from("lead-credit-screenshots").remove(storagePaths);
+        }
+        for (const table of [
+          "lead_credit_evidence",
+          "lead_call_evidence",
+          "lead_communications",
+          "lead_answer_verifications",
+          "bookings",
+        ]) {
+          const { error } = await supabase.from(table).delete().in("lead_id", leadIds);
+          if (error) throw error;
+        }
+        const { error } = await supabase.from("leads").delete().in("id", leadIds);
+        if (error) throw error;
+        return Response.json({ ok: true, deleted: leadIds.length }, { headers: corsHeaders });
+      }
+
       const { id, updates } = payload;
       if (!id || !updates || typeof updates !== "object")
         return new Response("Invalid update payload", { status: 400, headers: corsHeaders });
