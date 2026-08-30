@@ -1,8 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const encoder = new TextEncoder();
+const qualifyingScores = new Set(["680_699", "700_749", "750_plus"]);
+const qualifyingUtilization = new Set(["under_10", "10_29", "30_50"]);
 const FOLLOW_UP_MESSAGE =
-  "Scale to Legacy: Thanks for speaking with us. Book your funding strategy session here: https://calendly.com/scaletolegacy/30min. Please get your current score from Experian: https://www.experian.com. Once visible, take a screenshot and reply to this text with it so our team can review it. Reply STOP to opt out.";
+  "Scale to Legacy: Your qualification is not complete until you book your funding strategy session. Choose and confirm your appointment here: https://calendly.com/scaletolegacy/30min. Your appointment is booked only after you see the confirmation and receive the calendar invitation. Reply STOP to opt out.";
 
 function hex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes))
@@ -67,12 +69,15 @@ async function sendUnbookedFollowUp(supabase: ReturnType<typeof createClient>, l
   const { data: lead, error: leadError } = await supabase
     .from("leads")
     .select(
-      "phone, sms_contact_consent, sms_opted_out, calendar_booked_at, booking_followup_sms_attempted_at",
+      "phone, source, credit_score, utilization, sms_contact_consent, sms_opted_out, calendar_booked_at, booking_followup_sms_attempted_at",
     )
     .eq("id", leadId)
     .maybeSingle();
   if (leadError) throw leadError;
   if (
+    lead?.source !== "qualify_form" ||
+    !qualifyingScores.has(String(lead?.credit_score ?? "")) ||
+    !qualifyingUtilization.has(String(lead?.utilization ?? "")) ||
     !lead?.sms_contact_consent ||
     lead.sms_opted_out ||
     lead.calendar_booked_at ||
@@ -236,7 +241,12 @@ Deno.serve(async (request) => {
     const { error } = await supabase.from("leads").update(update).eq("id", leadId);
     if (error) throw error;
 
-    if (qualificationStatus === "qualified") {
+    // The applicant already met the form benchmarks before the call was
+    // created. Send the required booking link whenever that call is analyzed
+    // and no confirmed booking exists, even if Retell returns an incomplete or
+    // unexpected qualification label. sendUnbookedFollowUp rechecks consent,
+    // opt-out, original eligibility, booking state, and idempotency.
+    if (!["unanswered", "not_qualified"].includes(qualificationStatus)) {
       await sendUnbookedFollowUp(supabase, leadId);
     }
     return new Response(null, { status: 204 });

@@ -125,6 +125,16 @@ Deno.serve(async (request) => {
         to_number: toNumber,
         override_agent_id: agentId,
         override_agent_version: agentVersion,
+        agent_override: {
+          agent: {
+            // A television or another speaker in the room should not repeatedly
+            // cut off the agent. Retell recommends the background-speech mode
+            // for this environment and a lower sensitivity for false barge-ins.
+            denoising_mode: "noise-and-background-speech-cancellation",
+            interruption_sensitivity: 0.65,
+            responsiveness: 0.8,
+          },
+        },
         metadata: {
           lead_id: leadId,
           workflow: "scale_to_legacy_qualification",
@@ -136,6 +146,8 @@ Deno.serve(async (request) => {
           lead_phone: toNumber,
           lead_timezone: leadTimeZone,
           calendly_booking_url: "https://calendly.com/scaletolegacy/30min",
+          calendly_delivery_instruction:
+            "Never read or spell the Calendly URL aloud. If the lead is not booked, tell them the booking link will be sent by text after the call.",
           submitted_credit_score: String(lead.credit_score ?? ""),
           submitted_utilization: String(lead.utilization ?? ""),
           submitted_llc_status: String(lead.llc_status ?? ""),
