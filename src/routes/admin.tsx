@@ -1676,15 +1676,27 @@ function CommunicationVerification({
                 Choose the trusted value only when the form and call differ.
               </p>
             </div>
-            <label className="text-xs text-slate-500">
-              Reviewer
-              <input
-                value={reviewer}
-                onChange={(event) => setReviewer(event.target.value)}
-                className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-slate-900"
-                aria-label="Reviewer name"
-              />
-            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-[11px] font-medium">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-blue-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  Form
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-violet-700">
+                  <span className="h-2 w-2 rounded-full bg-violet-500" />
+                  Call
+                </span>
+              </div>
+              <label className="text-xs text-slate-500">
+                Reviewer
+                <input
+                  value={reviewer}
+                  onChange={(event) => setReviewer(event.target.value)}
+                  className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-slate-900"
+                  aria-label="Reviewer name"
+                />
+              </label>
+            </div>
           </div>
           <div className="grid gap-3 xl:grid-cols-2">
             {(lead.answer_comparisons ?? []).map((answer) => {
@@ -1710,7 +1722,7 @@ function CommunicationVerification({
               return (
                 <div
                   key={answer.field}
-                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.3)]"
+                  className={`rounded-xl border bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.3)] ${answer.status === "conflict" ? "border-red-200 ring-1 ring-red-50" : answer.status === "match" ? "border-emerald-200" : "border-amber-200/80"}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">
@@ -1723,17 +1735,21 @@ function CommunicationVerification({
                     </span>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg bg-muted/30 p-2 text-sm">
-                      <span className="block text-[11px] uppercase text-muted-foreground">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-2.5 text-sm shadow-[inset_3px_0_0_0_rgba(59,130,246,0.7)]">
+                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-blue-700">
                         Form answer
                       </span>
-                      {answerText(answer.form_value)}
+                      <span className="mt-1 block font-medium text-blue-950">
+                        {answerText(answer.form_value)}
+                      </span>
                     </div>
-                    <div className="rounded-lg bg-muted/30 p-2 text-sm">
-                      <span className="block text-[11px] uppercase text-muted-foreground">
+                    <div className="rounded-lg border border-violet-200 bg-violet-50/80 p-2.5 text-sm shadow-[inset_3px_0_0_0_rgba(139,92,246,0.7)]">
+                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                         Call answer
                       </span>
-                      {answerText(answer.call_value)}
+                      <span className="mt-1 block font-medium text-violet-950">
+                        {answerText(answer.call_value)}
+                      </span>
                     </div>
                   </div>
                   {answer.verification ? (
@@ -1764,7 +1780,7 @@ function CommunicationVerification({
                         onClick={() =>
                           onResolve(lead.id, answer.field, "form", notes[answer.field] ?? "")
                         }
-                        className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-40"
+                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-40"
                       >
                         Use form
                       </button>
@@ -1773,7 +1789,7 @@ function CommunicationVerification({
                         onClick={() =>
                           onResolve(lead.id, answer.field, "call", notes[answer.field] ?? "")
                         }
-                        className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                        className="rounded-full border border-violet-200 bg-violet-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-600 disabled:opacity-40"
                       >
                         Use call
                       </button>
