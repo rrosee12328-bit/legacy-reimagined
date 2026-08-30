@@ -147,7 +147,7 @@ Deno.serve(async (request) => {
           lead_timezone: leadTimeZone,
           calendly_booking_url: "https://calendly.com/scaletolegacy/30min",
           calendly_delivery_instruction:
-            "Never read or spell the Calendly URL aloud. If the lead is not booked, tell them the booking link will be sent by text after the call.",
+            "Never read or spell the Calendly URL aloud. Check whether the lead is booked. If they are not booked and do not choose a time during the call, call send_calendly_link immediately, confirm the text was sent, and ask them to open it and complete the booking.",
           submitted_credit_score: String(lead.credit_score ?? ""),
           submitted_utilization: String(lead.utilization ?? ""),
           submitted_llc_status: String(lead.llc_status ?? ""),
