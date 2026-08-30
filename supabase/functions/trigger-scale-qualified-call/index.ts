@@ -109,7 +109,6 @@ Deno.serve(async (request) => {
 
     const retellKey = Deno.env.get("RETELL_API_KEY");
     const agentId = Deno.env.get("SCALE_OUTBOUND_AGENT_ID");
-    const agentVersion = Number(Deno.env.get("SCALE_OUTBOUND_AGENT_VERSION") ?? "3");
     if (!retellKey || !agentId) {
       throw new Error("Outbound calling is not configured");
     }
@@ -124,7 +123,9 @@ Deno.serve(async (request) => {
         from_number: "+16153074302",
         to_number: toNumber,
         override_agent_id: agentId,
-        override_agent_version: agentVersion,
+        // Always use the current published agent. This prevents calls from
+        // remaining pinned to an older version after a Retell update.
+        override_agent_version: "latest_published",
         agent_override: {
           agent: {
             // A television or another speaker in the room should not repeatedly
