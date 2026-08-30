@@ -212,6 +212,26 @@ Deno.serve(async (request) => {
       if (payload.event === "call_ended") return new Response(null, { status: 204 });
     }
 
+    if (call.disconnection_reason === "voicemail_reached") {
+      const { error: voicemailError } = await supabase
+        .from("leads")
+        .update({
+          outbound_call_status: "voicemail",
+          qualification_status: "unconfirmed",
+          retell_call_id: call.call_id ?? null,
+          outbound_call_completed_at: new Date().toISOString(),
+        })
+        .eq("id", leadId);
+      if (voicemailError) throw voicemailError;
+
+      // The agent leaves a short voicemail, then this webhook sends the
+      // consented booking follow-up without waiting for post-call analysis.
+      if (payload.event === "call_ended") {
+        await sendUnbookedFollowUp(supabase, leadId);
+      }
+      return new Response(null, { status: 204 });
+    }
+
     if (payload.event !== "call_analyzed") return new Response(null, { status: 204 });
 
     // Retell places agent-level custom analysis fields alongside the built-in

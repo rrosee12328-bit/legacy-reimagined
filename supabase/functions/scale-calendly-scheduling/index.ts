@@ -198,6 +198,15 @@ Deno.serve(async (request) => {
     if (!token || !eventType) return json(503, { error: "Calendly is not configured" });
 
     if (functionName === "find_calendly_times") {
+      if (lead.calendar_booked_at) {
+        return json(200, {
+          booked: true,
+          calendar_booked_at: lead.calendar_booked_at,
+          available_times: [],
+          instruction:
+            "This lead is already booked. Do not send Calendly or offer another time. Send the Experian instructions instead.",
+        });
+      }
       const start = new Date();
       const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
       const params = new URLSearchParams({
@@ -211,6 +220,7 @@ Deno.serve(async (request) => {
         status: slot.status,
       }));
       return json(200, {
+        booked: false,
         timezone: lead.contact_consent_timezone ?? "UTC",
         available_times: slots,
         instruction: "Offer two or three of these times and ask the lead which they prefer.",
