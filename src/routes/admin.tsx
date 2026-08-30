@@ -48,6 +48,10 @@ import {
   MessageSquare,
   CheckCircle2,
   XCircle,
+  Headphones,
+  FileText,
+  ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -313,6 +317,7 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
   const [sortField, setSF] = useState<keyof Lead>("created_at");
   const [sortAsc, setSA] = useState(false);
   const [editLead, setEditLead] = useState<Lead | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewer, setReviewer] = useState(() =>
     typeof window === "undefined"
@@ -489,6 +494,18 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
         }),
     [leads, search, filterScore, filterStatus, sortField, sortAsc],
   );
+
+  useEffect(() => {
+    if (!visible.length) {
+      setSelectedLeadId(null);
+      return;
+    }
+    if (!selectedLeadId || !visible.some((lead) => lead.id === selectedLeadId)) {
+      setSelectedLeadId(visible[0].id);
+    }
+  }, [visible, selectedLeadId]);
+
+  const selectedLead = visible.find((lead) => lead.id === selectedLeadId) ?? null;
 
   function toggleSort(f: keyof Lead) {
     if (sortField === f) setSA(!sortAsc);
@@ -827,8 +844,97 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
               Showing {visible.length} of {leads.length} leads
             </p>
 
-            {/* Lead cards */}
-            <div className="grid gap-3">
+            <div className="grid min-h-[680px] overflow-hidden rounded-3xl border border-border bg-background shadow-[0_24px_80px_-40px_rgba(0,0,0,0.35)] lg:grid-cols-[330px_minmax(0,1fr)]">
+              <aside className="border-b border-border bg-muted/15 lg:border-b-0 lg:border-r">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold">Lead inbox</p>
+                    <p className="text-xs text-muted-foreground">{visible.length} matching leads</p>
+                  </div>
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                    {visible.filter((lead) => lead.score === "hot").length} priority
+                  </span>
+                </div>
+                <div className="max-h-[calc(100vh-260px)] min-h-[620px] overflow-y-auto p-2">
+                  {loading && (
+                    <p className="py-12 text-center text-sm text-muted-foreground">
+                      Loading leads…
+                    </p>
+                  )}
+                  {!loading && visible.length === 0 && (
+                    <p className="py-12 text-center text-sm text-muted-foreground">
+                      No leads found.
+                    </p>
+                  )}
+                  {visible.map((lead) => {
+                    const selected = selectedLeadId === lead.id;
+                    const lastCall = lead.call_history?.[0] ?? lead.call_evidence;
+                    return (
+                      <button
+                        key={lead.id}
+                        onClick={() => setSelectedLeadId(lead.id)}
+                        className={`mb-1 w-full rounded-2xl border p-3 text-left transition ${selected ? "border-primary/30 bg-background shadow-sm ring-1 ring-primary/10" : "border-transparent hover:border-border hover:bg-background/70"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{lead.full_name}</p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {lead.business_name || lead.email}
+                            </p>
+                          </div>
+                          {lead.score && SCORE_META[lead.score] && (
+                            <span
+                              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${SCORE_META[lead.score].bg}`}
+                            >
+                              {SCORE_META[lead.score].icon} {SCORE_META[lead.score].label}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {lastCall ? callOutcomeLabel(lead) : "Awaiting first call"}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                            {fmtDate(lead.created_at)}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex gap-1.5">
+                          {!!lead.call_history?.length && (
+                            <Headphones className="h-3.5 w-3.5 text-primary" />
+                          )}
+                          {!!lead.communications?.length && (
+                            <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                          )}
+                          {!!lead.answer_comparisons?.some(
+                            (item) => item.status === "conflict" && !item.verification,
+                          ) && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
+
+              <section className="min-w-0 bg-gradient-to-b from-background to-muted/10">
+                {selectedLead ? (
+                  <LeadWorkspace
+                    lead={selectedLead}
+                    reviewer={reviewer}
+                    setReviewer={setReviewer}
+                    saving={verificationSaving}
+                    onResolve={resolveVerification}
+                    onEdit={() => setEditLead(selectedLead)}
+                  />
+                ) : (
+                  <div className="flex min-h-[680px] items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                    Select a lead to see their complete communication history.
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {/* Legacy stacked cards retained as a non-rendered fallback while the new workspace rolls out. */}
+            <div className="hidden">
               {loading && <p className="text-center text-muted-foreground py-12">Loading leads…</p>}
               {!loading && visible.length === 0 && (
                 <p className="text-center text-muted-foreground py-12">No leads found.</p>
@@ -1245,6 +1351,223 @@ function answerText(value: unknown) {
   return String(value).replace(/_/g, " ");
 }
 
+function callOutcomeLabel(lead: Lead) {
+  const value =
+    `${lead.outbound_call_status ?? ""} ${lead.call_evidence?.disconnection_reason ?? ""}`.toLowerCase();
+  if (value.includes("voicemail")) return "Voicemail left";
+  if (value.includes("no_answer") || value.includes("unanswered")) return "No answer";
+  if (value.includes("book")) return "Appointment booked";
+  if (value.includes("qualified"))
+    return value.includes("not_qualified") ? "Not qualified" : "Qualified";
+  if (lead.call_history?.length || lead.call_evidence) return "Call completed";
+  return "Call pending";
+}
+
+function LeadWorkspace({
+  lead,
+  reviewer,
+  setReviewer,
+  saving,
+  onResolve,
+  onEdit,
+}: {
+  lead: Lead;
+  reviewer: string;
+  setReviewer: (value: string) => void;
+  saving: string | null;
+  onResolve: (
+    leadId: string,
+    field: string,
+    source: "form" | "call",
+    note: string,
+  ) => Promise<void>;
+  onEdit: () => void;
+}) {
+  const calls = lead.call_history ?? [];
+  const messages = lead.communications ?? [];
+  const conflicts = (lead.answer_comparisons ?? []).filter(
+    (item) => item.status === "conflict" && !item.verification,
+  ).length;
+  const latestCall = calls[0] ?? lead.call_evidence;
+
+  return (
+    <div>
+      <div className="border-b border-border px-5 py-5 md:px-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-2xl">{lead.full_name}</h2>
+              <StatusBadge status={lead.status} />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {lead.business_name || "Business funding applicant"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+              <a
+                href={`tel:${lead.phone}`}
+                className="inline-flex items-center gap-1.5 hover:text-primary"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {lead.phone}
+              </a>
+              <a
+                href={`mailto:${lead.email}`}
+                className="inline-flex items-center gap-1.5 hover:text-primary"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                {lead.email}
+              </a>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`tel:${lead.phone}`}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-accent"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              Call
+            </a>
+            <a
+              href="https://calendly.com/scaletolegacy/30min"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-accent"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              Calendar
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:brightness-110"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Edit lead
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-2 xl:grid-cols-4">
+          <SummaryTile
+            icon={<Headphones className="h-4 w-4" />}
+            label="Latest call"
+            value={callOutcomeLabel(lead)}
+            detail={
+              latestCall ? fmtDateTime(latestCall.captured_at ?? lead.created_at) : "Not called yet"
+            }
+          />
+          <SummaryTile
+            icon={<MessageSquare className="h-4 w-4" />}
+            label="Messages"
+            value={`${messages.length} saved`}
+            detail={
+              messages.length
+                ? `${messages.filter((item) => item.direction === "inbound").length} inbound`
+                : "No SMS or MMS yet"
+            }
+          />
+          <SummaryTile
+            icon={<FileText className="h-4 w-4" />}
+            label="Call records"
+            value={`${calls.length || (lead.call_evidence ? 1 : 0)} call${calls.length === 1 ? "" : "s"}`}
+            detail={latestCall?.recording_url ? "Audio available" : "No recording yet"}
+          />
+          <SummaryTile
+            icon={<ShieldCheck className="h-4 w-4" />}
+            label="Review"
+            value={
+              conflicts ? `${conflicts} conflict${conflicts === 1 ? "" : "s"}` : "No open conflicts"
+            }
+            detail={lead.sms_contact_consent ? "Contact consent recorded" : "No contact consent"}
+            alert={conflicts > 0}
+          />
+        </div>
+      </div>
+
+      <div className="p-5 md:p-7">
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Detail
+            label="Credit score"
+            value={CREDIT_LABELS[lead.credit_score] ?? lead.credit_score ?? "—"}
+          />
+          <Detail
+            label="Utilization"
+            value={lead.utilization?.replace(/_/g, "–").replace("plus", "+") ?? "—"}
+          />
+          <Detail label="Pipeline" value={lead.pipeline_stage ?? "New Lead"} />
+          <Detail label="Assigned to" value={lead.assigned_to ?? "Lonnie"} />
+        </div>
+        {lead.notes && (
+          <div className="mb-5 rounded-2xl border border-border bg-muted/15 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Internal notes
+            </p>
+            <p className="mt-1 text-sm leading-relaxed">{lead.notes}</p>
+          </div>
+        )}
+        <CommunicationVerification
+          lead={lead}
+          reviewer={reviewer}
+          setReviewer={setReviewer}
+          saving={saving}
+          onResolve={onResolve}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SummaryTile({
+  icon,
+  label,
+  value,
+  detail,
+  alert = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  alert?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-3.5 ${alert ? "border-red-200 bg-red-50/70" : "border-border bg-muted/15"}`}
+    >
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <p className={`mt-2 text-sm font-semibold ${alert ? "text-red-700" : ""}`}>{value}</p>
+      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
+
+function MessageBody({ body }: { body: string }) {
+  const parts = body.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+      {parts.map((part, index) =>
+        /^https?:\/\//.test(part) ? (
+          <a
+            key={`${part}-${index}`}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 break-all font-medium text-primary underline underline-offset-2"
+          >
+            {part}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  );
+}
+
 function CommunicationVerification({
   lead,
   reviewer,
@@ -1282,7 +1605,7 @@ function CommunicationVerification({
   );
 
   return (
-    <div className="mb-4 rounded-xl border border-border bg-background p-4">
+    <div className="rounded-2xl border border-border bg-background p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -1303,7 +1626,7 @@ function CommunicationVerification({
         </label>
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-5 grid gap-3 xl:grid-cols-2">
         {(lead.answer_comparisons ?? []).map((answer) => {
           const busy = saving === `${lead.id}:${answer.field}`;
           const statusMeta =
@@ -1419,9 +1742,7 @@ function CommunicationVerification({
                       {fmtDateTime(event.at)} · {event.item.status}
                     </span>
                   </div>
-                  {event.item.body && (
-                    <p className="mt-2 whitespace-pre-wrap text-sm">{event.item.body}</p>
-                  )}
+                  {event.item.body && <MessageBody body={event.item.body} />}
                   {event.item.error_message && (
                     <p className="mt-2 text-xs text-red-600">{event.item.error_message}</p>
                   )}
