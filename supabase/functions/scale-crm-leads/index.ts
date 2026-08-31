@@ -148,7 +148,7 @@ function toE164Phone(value: string) {
 }
 
 function bookingReminder(firstName: string) {
-  return `Hi ${firstName}, this is Scale to Legacy. Your qualification for business funding is incomplete until you book your required call. Book here: ${BOOKING_URL}. Your appointment is confirmed only after you see the confirmation screen and receive the calendar invitation. Reply STOP to opt out.`;
+  return `Hi ${firstName}, this is Scale to Legacy. Your qualification for business funding is incomplete until you book your required call.\n\nBook here:\n${BOOKING_URL}\n\nYour appointment is confirmed only after you see the confirmation screen and receive the calendar invitation. Reply STOP to opt out.`;
 }
 
 async function sendTwilioSms(to: string, body: string) {

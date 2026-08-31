@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const encoder = new TextEncoder();
 const BOOKING_MESSAGE =
-  "Scale to Legacy: Your qualification for business funding is incomplete until you book your call. Book now: https://calendly.com/scaletolegacy/30min. Your appointment is booked only after you see the confirmation and receive the calendar invitation. Reply STOP to opt out.";
+  "Scale to Legacy: Your qualification for business funding is incomplete until you book your call.\n\nBook now:\nhttps://calendly.com/scaletolegacy/30min\n\nYour appointment is booked only after you see the confirmation and receive the calendar invitation. Reply STOP to opt out.";
 
 function json(status: number, body: Record<string, unknown>) {
   return Response.json(body, { status });

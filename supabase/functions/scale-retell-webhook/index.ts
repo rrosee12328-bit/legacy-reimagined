@@ -4,7 +4,7 @@ const encoder = new TextEncoder();
 const qualifyingScores = new Set(["680_699", "700_749", "750_plus"]);
 const qualifyingUtilization = new Set(["under_10", "10_29", "30_50"]);
 const FOLLOW_UP_MESSAGE =
-  "Scale to Legacy: Your qualification for business funding is incomplete until you book your call. Book now: https://calendly.com/scaletolegacy/30min. Your appointment is booked only after you see the confirmation and receive the calendar invitation. Reply STOP to opt out.";
+  "Scale to Legacy: Your qualification for business funding is incomplete until you book your call.\n\nBook now:\nhttps://calendly.com/scaletolegacy/30min\n\nYour appointment is booked only after you see the confirmation and receive the calendar invitation. Reply STOP to opt out.";
 
 function hex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes))

@@ -17,12 +17,12 @@ function trackedBookingUrl(leadId: string) {
 function messageFor(step: number, firstName: string, leadId: string) {
   const link = trackedBookingUrl(leadId);
   if (step === 1)
-    return `Hi ${firstName}, this is Scale to Legacy. Your qualification for business funding is incomplete until you book your required call. Book here: ${link}. Your appointment is confirmed only after you see the confirmation screen and receive the calendar invitation. Reply STOP to opt out.`;
+    return `Hi ${firstName}, this is Scale to Legacy. Your qualification for business funding is incomplete until you book your required call.\n\nBook here:\n${link}\n\nYour appointment is confirmed only after you see the confirmation screen and receive the calendar invitation. Reply STOP to opt out.`;
   if (step === 2)
-    return `Hi ${firstName}, quick reminder from Scale to Legacy: your business funding qualification is still incomplete because we do not see a confirmed call. Choose your time here: ${link}. Reply STOP to opt out.`;
+    return `Hi ${firstName}, quick reminder from Scale to Legacy: your business funding qualification is still incomplete because we do not see a confirmed call.\n\nChoose your time here:\n${link}\n\nReply STOP to opt out.`;
   if (step === 3)
-    return `Hi ${firstName}, we still do not see your Scale to Legacy qualification call on the calendar. Booking the call is required to complete qualification: ${link}. Reply STOP to opt out.`;
-  return `Hi ${firstName}, this is your final reminder from Scale to Legacy. Your business funding qualification will remain incomplete until you book your required call: ${link}. Reply STOP to opt out.`;
+    return `Hi ${firstName}, we still do not see your Scale to Legacy qualification call on the calendar. Booking the call is required to complete qualification.\n\nBook here:\n${link}\n\nReply STOP to opt out.`;
+  return `Hi ${firstName}, this is your final reminder from Scale to Legacy. Your business funding qualification will remain incomplete until you book your required call.\n\nBook here:\n${link}\n\nReply STOP to opt out.`;
 }
 
 function normalizedPhone(value: unknown) {
