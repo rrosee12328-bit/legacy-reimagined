@@ -26,6 +26,117 @@ const corsHeaders = {
 };
 const BOOKING_URL = "https://calendly.com/scaletolegacy/30min";
 const TWILIO_FROM_NUMBER = "+16153074302";
+const qualifyingScores = new Set(["680_699", "700_749", "750_plus"]);
+const qualifyingUtilization = new Set(["under_10", "10_29", "30_50"]);
+
+function permittedCallingHour(timezone: string) {
+  try {
+    const hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "numeric",
+        hourCycle: "h23",
+      }).format(new Date()),
+    );
+    return hour >= 8 && hour < 21;
+  } catch {
+    return false;
+  }
+}
+
+async function calendlyBookingExists(lead: Record<string, unknown>) {
+  const token = Deno.env.get("CALENDLY_API_TOKEN");
+  const eventType = Deno.env.get("CALENDLY_EVENT_TYPE_URI");
+  if (!token || !eventType) throw new Error("Calendly reconciliation is not configured");
+  const headers = { Authorization: `Bearer ${token}` };
+  const meResponse = await fetch("https://api.calendly.com/users/me", { headers });
+  if (!meResponse.ok) throw new Error(`Calendly user lookup failed: ${meResponse.status}`);
+  const me = await meResponse.json();
+  const organization = me.resource?.current_organization;
+  const params = new URLSearchParams({
+    organization,
+    event_type: eventType,
+    status: "active",
+    count: "100",
+    min_start_time: new Date(Date.now() - 30 * 86400000).toISOString(),
+  });
+  params.set(
+    "invitee_email",
+    String(lead.email ?? "")
+      .trim()
+      .toLowerCase(),
+  );
+  const response = await fetch(`https://api.calendly.com/scheduled_events?${params}`, { headers });
+  if (!response.ok) throw new Error(`Calendly event lookup failed: ${response.status}`);
+  return ((await response.json()).collection ?? []).length > 0;
+}
+
+async function auditRecovery(
+  supabase: ReturnType<typeof createClient>,
+  leadId: string,
+  issueId: string | null,
+  action: string,
+  reviewer: string,
+  status: string,
+  detail: Record<string, unknown> = {},
+) {
+  await supabase.from("crm_recovery_actions").insert({
+    lead_id: leadId,
+    issue_id: issueId,
+    action_type: action,
+    requested_by: reviewer,
+    status,
+    detail,
+  });
+}
+
+async function openIssue(
+  supabase: ReturnType<typeof createClient>,
+  leadId: string,
+  type: string,
+  sourceRef: string,
+  summary: string,
+  technicalDetail: string,
+  recommendedAction: string,
+) {
+  await supabase.from("automation_issues").upsert(
+    {
+      lead_id: leadId,
+      issue_type: type,
+      source: "crm",
+      source_ref: sourceRef,
+      severity: "error",
+      status: "open",
+      summary,
+      technical_detail: technicalDetail.slice(0, 4000),
+      recommended_action: recommendedAction,
+      last_occurred_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "source,source_ref,issue_type" },
+  );
+}
+
+async function cancelBookedSequence(supabase: ReturnType<typeof createClient>, leadId: string) {
+  const now = new Date().toISOString();
+  await supabase
+    .from("leads")
+    .update({
+      calendar_booked_at: now,
+      booking_sequence_status: "cancelled_booked",
+      booking_sequence_next_at: null,
+    })
+    .eq("id", leadId);
+  await supabase
+    .from("lead_followup_sequence")
+    .update({
+      status: "cancelled_booked",
+      cancellation_reason: "Calendly booking confirmed",
+      updated_at: now,
+    })
+    .eq("lead_id", leadId)
+    .in("status", ["pending", "paused", "failed", "processing"]);
+}
 
 function toE164Phone(value: string) {
   const trimmed = value.trim();
@@ -166,6 +277,10 @@ Deno.serve(async (request) => {
         communicationsResult,
         verificationsResult,
         sequenceResult,
+        issuesResult,
+        actionsResult,
+        callAttemptsResult,
+        lastRunResult,
       ] = await Promise.all([
         leadIds.length
           ? supabase
@@ -198,20 +313,54 @@ Deno.serve(async (request) => {
               .in("lead_id", leadIds)
               .order("step_number", { ascending: true })
           : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("automation_issues")
+          .select("*")
+          .order("last_occurred_at", { ascending: false }),
+        leadIds.length
+          ? supabase
+              .from("crm_recovery_actions")
+              .select("*")
+              .in("lead_id", leadIds)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        leadIds.length
+          ? supabase
+              .from("lead_call_attempts")
+              .select("*")
+              .in("lead_id", leadIds)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("automation_runs")
+          .select("*")
+          .eq("worker", "process-scale-lead-followups")
+          .eq("status", "success")
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       if (
         callsResult.error ||
         screenshotsResult.error ||
         communicationsResult.error ||
         verificationsResult.error ||
-        sequenceResult.error
+        sequenceResult.error ||
+        issuesResult.error ||
+        actionsResult.error ||
+        callAttemptsResult.error ||
+        lastRunResult.error
       ) {
         throw (
           callsResult.error ??
           screenshotsResult.error ??
           communicationsResult.error ??
           verificationsResult.error ??
-          sequenceResult.error
+          sequenceResult.error ??
+          issuesResult.error ??
+          actionsResult.error ??
+          callAttemptsResult.error ??
+          lastRunResult.error
         );
       }
       const screenshots = screenshotsResult.data ?? [];
@@ -251,6 +400,23 @@ Deno.serve(async (request) => {
           signed_url: signedByPath.get(item.storage_path) ?? null,
         })),
         "lead_id",
+      );
+      const issuesByLead = group(
+        (issuesResult.data ?? []).filter((item) => item.lead_id) as Array<Record<string, unknown>>,
+        "lead_id",
+      );
+      const actionsByLead = group(
+        (actionsResult.data ?? []) as Array<Record<string, unknown>>,
+        "lead_id",
+      );
+      const callAttemptsByLead = group(
+        (callAttemptsResult.data ?? []) as Array<Record<string, unknown>>,
+        "lead_id",
+      );
+      const lastSuccessfulRun = lastRunResult.data;
+      const processorHealthy = Boolean(
+        lastSuccessfulRun?.started_at &&
+        Date.now() - new Date(lastSuccessfulRun.started_at).getTime() <= 15 * 60 * 1000,
       );
 
       // Recover calls whose webhook delivery was missed. Retell still retains
@@ -318,8 +484,19 @@ Deno.serve(async (request) => {
               credit_screenshots: screenshotsByLead.get(lead.id) ?? [],
               answer_comparisons: comparisons,
               followup_sequence: sequenceByLead.get(lead.id) ?? [],
+              automation_issues: issuesByLead.get(lead.id) ?? [],
+              recovery_actions: actionsByLead.get(lead.id) ?? [],
+              call_attempts: callAttemptsByLead.get(lead.id) ?? [],
             };
           }),
+          automation_issues: issuesResult.data ?? [],
+          automation_health: {
+            status: processorHealthy ? "healthy" : "needs_attention",
+            last_successful_run_at: lastSuccessfulRun?.started_at ?? null,
+            warning: processorHealthy
+              ? null
+              : "The follow-up processor has not completed successfully in the last 15 minutes.",
+          },
         },
         { headers: corsHeaders },
       );
@@ -327,6 +504,283 @@ Deno.serve(async (request) => {
 
     if (request.method === "PATCH") {
       const payload = await request.json();
+      const reviewer =
+        String(payload.reviewer ?? "CRM Admin")
+          .trim()
+          .slice(0, 100) || "CRM Admin";
+
+      if (payload.action === "resolve_automation_issue") {
+        const issueId = String(payload.issue_id ?? "");
+        if (!issueId)
+          return new Response("Missing issue id", { status: 400, headers: corsHeaders });
+        const { data: issue, error: issueError } = await supabase
+          .from("automation_issues")
+          .update({
+            status: "resolved",
+            resolved_at: new Date().toISOString(),
+            resolved_by: reviewer,
+            resolution_note:
+              String(payload.note ?? "")
+                .trim()
+                .slice(0, 1000) || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", issueId)
+          .select("lead_id")
+          .single();
+        if (issueError) throw issueError;
+        await auditRecovery(
+          supabase,
+          issue.lead_id,
+          issueId,
+          payload.action,
+          reviewer,
+          "completed",
+        );
+        return Response.json({ resolved: true }, { headers: corsHeaders });
+      }
+
+      if (payload.action === "recheck_calendly") {
+        const leadId = String(payload.id ?? "");
+        const { data: lead, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("id", leadId)
+          .single();
+        if (error) throw error;
+        try {
+          const booked = Boolean(lead.calendar_booked_at) || (await calendlyBookingExists(lead));
+          if (booked) {
+            await cancelBookedSequence(supabase, leadId);
+            await supabase
+              .from("automation_issues")
+              .update({
+                status: "resolved",
+                resolved_at: new Date().toISOString(),
+                resolved_by: reviewer,
+                resolution_note: "Calendly booking confirmed",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("lead_id", leadId)
+              .in("status", ["open", "retrying"]);
+          }
+          await auditRecovery(supabase, leadId, null, payload.action, reviewer, "completed", {
+            booked,
+          });
+          return Response.json({ booked }, { headers: corsHeaders });
+        } catch (error) {
+          await openIssue(
+            supabase,
+            leadId,
+            "calendly_recheck_failed",
+            leadId,
+            "Calendly could not be checked",
+            String(error),
+            "Retry the Calendly check",
+          );
+          await auditRecovery(supabase, leadId, null, payload.action, reviewer, "failed", {
+            error: String(error),
+          });
+          throw error;
+        }
+      }
+
+      if (["retry_followup_step", "restart_followup_sequence"].includes(payload.action)) {
+        const leadId = String(payload.id ?? "");
+        const { data: lead, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("id", leadId)
+          .single();
+        if (error) throw error;
+        if (lead.calendar_booked_at || (await calendlyBookingExists(lead))) {
+          await cancelBookedSequence(supabase, leadId);
+          return Response.json(
+            { restarted: false, reason: "already_booked" },
+            { headers: corsHeaders },
+          );
+        }
+        if (
+          !lead.sms_contact_consent ||
+          lead.sms_opted_out ||
+          !qualifyingScores.has(lead.credit_score) ||
+          !qualifyingUtilization.has(lead.utilization)
+        ) {
+          return Response.json(
+            { restarted: false, reason: "lead_not_eligible" },
+            { headers: corsHeaders },
+          );
+        }
+        let query = supabase
+          .from("lead_followup_sequence")
+          .update({
+            status: "pending",
+            attempts: 0,
+            scheduled_at: new Date().toISOString(),
+            cancellation_reason: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("lead_id", leadId)
+          .in(
+            "status",
+            payload.action === "retry_followup_step"
+              ? ["failed"]
+              : ["failed", "cancelled_manual", "paused"],
+          );
+        if (payload.step_id) query = query.eq("id", String(payload.step_id));
+        const { error: updateError } = await query;
+        if (updateError) throw updateError;
+        await supabase
+          .from("leads")
+          .update({
+            booking_sequence_status: "active",
+            booking_sequence_next_at: new Date().toISOString(),
+          })
+          .eq("id", leadId);
+        await supabase
+          .from("automation_issues")
+          .update({ status: "retrying", retry_count: 0, updated_at: new Date().toISOString() })
+          .eq("lead_id", leadId)
+          .in("status", ["open"]);
+        await auditRecovery(
+          supabase,
+          leadId,
+          payload.issue_id ?? null,
+          payload.action,
+          reviewer,
+          "completed",
+        );
+        return Response.json({ restarted: true }, { headers: corsHeaders });
+      }
+
+      if (payload.action === "trigger_adam_call") {
+        const leadId = String(payload.id ?? "");
+        const { data: lead, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("id", leadId)
+          .single();
+        if (error) throw error;
+        let blockedReason = "";
+        if (
+          !qualifyingScores.has(lead.credit_score) ||
+          !qualifyingUtilization.has(lead.utilization)
+        )
+          blockedReason = "The lead no longer meets the qualification benchmarks.";
+        else if (!lead.sms_contact_consent || !lead.contact_consent_at)
+          blockedReason = "Required call consent is missing.";
+        else if (lead.sms_opted_out) blockedReason = "The lead has opted out.";
+        else if (lead.calendar_booked_at || (await calendlyBookingExists(lead)))
+          blockedReason = "The lead already has a confirmed Calendly booking.";
+        else if (!permittedCallingHour(String(lead.contact_consent_timezone ?? "")))
+          blockedReason = "The lead is outside permitted calling hours.";
+        else if (["queued", "calling"].includes(String(lead.outbound_call_status ?? "")))
+          blockedReason = "A call is already queued or active.";
+        const { data: recent } = await supabase
+          .from("lead_call_attempts")
+          .select("created_at")
+          .eq("lead_id", leadId)
+          .eq("source", "crm")
+          .gte("created_at", new Date(Date.now() - 86400000).toISOString())
+          .limit(1)
+          .maybeSingle();
+        if (!blockedReason && recent)
+          blockedReason = "A CRM-triggered Adam call was already placed in the last 24 hours.";
+        if (blockedReason)
+          return Response.json(
+            { queued: false, blocked_reason: blockedReason },
+            { headers: corsHeaders },
+          );
+
+        const retellKey = Deno.env.get("RETELL_API_KEY");
+        const agentId = Deno.env.get("SCALE_OUTBOUND_AGENT_ID");
+        if (!retellKey || !agentId) throw new Error("Outbound calling is not configured");
+        const attempt = await supabase
+          .from("lead_call_attempts")
+          .insert({ lead_id: leadId, requested_by: reviewer, source: "crm", status: "requesting" })
+          .select("id")
+          .single();
+        if (attempt.error) throw attempt.error;
+        try {
+          const response = await fetch("https://api.retellai.com/v2/create-phone-call", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${retellKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from_number: TWILIO_FROM_NUMBER,
+              to_number: toE164Phone(String(lead.phone ?? "")),
+              override_agent_id: agentId,
+              override_agent_version: "latest_published",
+              agent_override: {
+                agent: {
+                  denoising_mode: "noise-and-background-speech-cancellation",
+                  interruption_sensitivity: 0.65,
+                  responsiveness: 0.8,
+                },
+              },
+              metadata: {
+                lead_id: leadId,
+                workflow: "scale_to_legacy_qualification",
+                requested_by: reviewer,
+              },
+              retell_llm_dynamic_variables: {
+                lead_id: leadId,
+                lead_full_name: String(lead.full_name ?? "there"),
+                lead_email: String(lead.email ?? ""),
+                lead_phone: toE164Phone(String(lead.phone ?? "")),
+                lead_timezone: String(lead.contact_consent_timezone ?? ""),
+                calendly_booking_url: BOOKING_URL,
+                submitted_credit_score: String(lead.credit_score ?? ""),
+                submitted_utilization: String(lead.utilization ?? ""),
+                submitted_llc_status: String(lead.llc_status ?? ""),
+              },
+            }),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(`Retell ${response.status}: ${JSON.stringify(body)}`);
+          await supabase
+            .from("lead_call_attempts")
+            .update({
+              retell_call_id: body.call_id,
+              status: "queued",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", attempt.data.id);
+          await supabase
+            .from("leads")
+            .update({
+              outbound_call_status: "queued",
+              retell_call_id: body.call_id,
+              outbound_call_requested_at: new Date().toISOString(),
+            })
+            .eq("id", leadId);
+          await auditRecovery(supabase, leadId, null, payload.action, reviewer, "completed", {
+            retell_call_id: body.call_id,
+          });
+          return Response.json({ queued: true, call_id: body.call_id }, { headers: corsHeaders });
+        } catch (error) {
+          await supabase
+            .from("lead_call_attempts")
+            .update({
+              status: "failed",
+              failure_detail: String(error).slice(0, 4000),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", attempt.data.id);
+          await openIssue(
+            supabase,
+            leadId,
+            "retell_call_creation_failed",
+            attempt.data.id,
+            "Adam call could not be started",
+            String(error),
+            "Review the error and try the call again",
+          );
+          await auditRecovery(supabase, leadId, null, payload.action, reviewer, "failed", {
+            error: String(error),
+          });
+          throw error;
+        }
+      }
       if (payload.action === "cancel_followup_sequence") {
         const leadId = String(payload.id ?? "");
         if (!leadId) return new Response("Missing lead id", { status: 400, headers: corsHeaders });

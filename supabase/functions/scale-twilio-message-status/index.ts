@@ -60,15 +60,47 @@ Deno.serve(async (request) => {
         ? "failed"
         : null;
   if (sequenceStatus) {
-    const { error: sequenceError } = await supabase
+    const { data: sequenceStep, error: sequenceError } = await supabase
       .from("lead_followup_sequence")
       .update({
         status: sequenceStatus,
         last_error: params.get("ErrorMessage") || null,
         updated_at: new Date().toISOString(),
       })
-      .eq("twilio_message_sid", sid);
+      .eq("twilio_message_sid", sid)
+      .select("id, lead_id, step_number")
+      .maybeSingle();
     if (sequenceError) console.error(sequenceError);
+    if (sequenceStep && sequenceStatus === "failed") {
+      await supabase.from("automation_issues").upsert(
+        {
+          lead_id: sequenceStep.lead_id,
+          sequence_step_id: sequenceStep.id,
+          issue_type: "sms_delivery_failed",
+          source: "twilio",
+          source_ref: sid,
+          severity: "error",
+          status: "open",
+          summary: `Booking reminder ${sequenceStep.step_number} was not delivered.`,
+          technical_detail: params.get("ErrorMessage") || params.get("ErrorCode") || messageStatus,
+          recommended_action: "Retry the text after confirming the number and Calendly status.",
+          last_occurred_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "source,source_ref,issue_type" },
+      );
+    } else if (sequenceStep && sequenceStatus === "delivered") {
+      await supabase
+        .from("automation_issues")
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+          resolved_by: "system",
+          resolution_note: "Twilio confirmed delivery.",
+        })
+        .eq("sequence_step_id", sequenceStep.id)
+        .in("status", ["open", "retrying"]);
+    }
   }
   return new Response(null, { status: 204 });
 });

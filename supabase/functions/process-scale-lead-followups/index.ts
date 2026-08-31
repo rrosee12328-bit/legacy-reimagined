@@ -145,6 +145,34 @@ async function sendSms(to: string, body: string) {
   return { sid: String(payload.sid), status: String(payload.status ?? "queued") };
 }
 
+async function upsertIssue(
+  supabase: ReturnType<typeof createClient>,
+  input: Record<string, unknown>,
+) {
+  await supabase.from("automation_issues").upsert(
+    {
+      ...input,
+      status: "open",
+      last_occurred_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "source,source_ref,issue_type" },
+  );
+}
+
+async function resolveIssues(
+  supabase: ReturnType<typeof createClient>,
+  leadId: string,
+  sourceRef: string,
+) {
+  await supabase
+    .from("automation_issues")
+    .update({ status: "resolved", resolved_at: new Date().toISOString(), resolved_by: "system" })
+    .eq("lead_id", leadId)
+    .eq("source_ref", sourceRef)
+    .in("status", ["open", "retrying"]);
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const secret = Deno.env.get("SCALE_FOLLOWUP_CRON_SECRET");
@@ -155,8 +183,24 @@ Deno.serve(async (request) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  const { data: run } = await supabase
+    .from("automation_runs")
+    .insert({ worker: "process-scale-lead-followups", status: "running" })
+    .select("id")
+    .single();
   const { data: jobs, error } = await supabase.rpc("claim_due_lead_followups", { batch_size: 25 });
-  if (error) return new Response(error.message, { status: 500 });
+  if (error) {
+    if (run?.id)
+      await supabase
+        .from("automation_runs")
+        .update({
+          status: "failed",
+          finished_at: new Date().toISOString(),
+          error_detail: error.message,
+        })
+        .eq("id", run.id);
+    return new Response(error.message, { status: 500 });
+  }
   const results: Array<Record<string, unknown>> = [];
 
   for (const job of jobs ?? []) {
@@ -276,6 +320,7 @@ Deno.serve(async (request) => {
           updated_at: now,
         })
         .eq("id", job.id);
+      await resolveIssues(supabase, lead.id, String(job.id));
 
       const { data: nextJob } = await supabase
         .from("lead_followup_sequence")
@@ -308,9 +353,33 @@ Deno.serve(async (request) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", job.id);
+      if (!retry) {
+        await upsertIssue(supabase, {
+          lead_id: job.lead_id,
+          sequence_step_id: job.id,
+          issue_type: "followup_step_failed",
+          source: "followup_processor",
+          source_ref: String(job.id),
+          severity: "error",
+          summary: `Booking reminder ${job.step_number} could not be sent after three attempts.`,
+          technical_detail: String(jobError).slice(0, 2000),
+          recommended_action: "Retry the text after checking Calendly and lead eligibility.",
+          retry_count: Number(job.attempts),
+        });
+      }
       results.push({ id: job.id, status: retry ? "retrying" : "failed" });
     }
   }
+
+  if (run?.id)
+    await supabase
+      .from("automation_runs")
+      .update({
+        status: "success",
+        finished_at: new Date().toISOString(),
+        processed: results.length,
+      })
+      .eq("id", run.id);
 
   return Response.json({ processed: results.length, results });
 });

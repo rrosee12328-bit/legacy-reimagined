@@ -118,6 +118,26 @@ interface FollowupStep {
   cancellation_reason?: string | null;
 }
 
+interface AutomationIssue {
+  id: string;
+  lead_id?: string | null;
+  sequence_step_id?: string | null;
+  issue_type: string;
+  severity: "warning" | "error" | "critical";
+  status: "open" | "retrying" | "resolved" | "dismissed";
+  summary: string;
+  technical_detail?: string | null;
+  recommended_action?: string | null;
+  retry_count: number;
+  last_occurred_at: string;
+}
+
+interface AutomationHealth {
+  status: "healthy" | "needs_attention";
+  last_successful_run_at?: string | null;
+  warning?: string | null;
+}
+
 interface Lead {
   id: string;
   created_at: string;
@@ -155,6 +175,7 @@ interface Lead {
   booking_sequence_next_at?: string;
   booking_sequence_step?: number;
   manual_follow_up_needed?: boolean;
+  automation_issues?: AutomationIssue[];
 }
 
 type View = "dashboard" | "leads" | "analytics";
@@ -339,6 +360,9 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
       : (localStorage.getItem("scale-crm-reviewer") ?? "CRM Admin"),
   );
   const [verificationSaving, setVerificationSaving] = useState<string | null>(null);
+  const [automationIssues, setAutomationIssues] = useState<AutomationIssue[]>([]);
+  const [automationHealth, setAutomationHealth] = useState<AutomationHealth>({ status: "healthy" });
+  const [recoverySaving, setRecoverySaving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -348,8 +372,11 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
     if (response.ok) {
       const payload = await response.json();
       setLeads((payload.leads as Lead[]) ?? []);
+      setAutomationIssues((payload.automation_issues as AutomationIssue[]) ?? []);
+      setAutomationHealth(payload.automation_health ?? { status: "healthy" });
     } else {
       setLeads([]);
+      setAutomationIssues([]);
     }
     setLoading(false);
   }, [crmPassword]);
@@ -383,6 +410,31 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
       setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       setEditLead(null);
     }
+  }
+
+  async function runRecovery(action: string, leadId: string, extra: Record<string, unknown> = {}) {
+    const key = `${leadId}:${action}`;
+    setRecoverySaving(key);
+    const response = await fetch(CRM_ENDPOINT, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-scale-crm-password": crmPassword },
+      body: JSON.stringify({
+        action,
+        id: leadId,
+        reviewer: reviewer.trim() || "CRM Admin",
+        ...extra,
+      }),
+    });
+    const result = response.headers.get("content-type")?.includes("application/json")
+      ? await response.json()
+      : { error: await response.text() };
+    if (!response.ok || result.blocked_reason || result.reason === "lead_not_eligible") {
+      window.alert(result.blocked_reason ?? result.error ?? "This action could not be completed.");
+    } else if (action === "trigger_adam_call" && result.queued) {
+      window.alert("Adam's call has been queued from the 615 number.");
+    }
+    await load();
+    setRecoverySaving(null);
   }
 
   async function resolveVerification(
@@ -586,6 +638,66 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
       </header>
 
       <main className="mx-auto max-w-7xl w-full px-6 py-8 flex-1">
+        {(automationHealth.status === "needs_attention" ||
+          automationIssues.some((issue) => ["open", "retrying"].includes(issue.status))) && (
+          <section className="mb-6 overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-[0_18px_45px_-28px_rgba(225,29,72,0.5)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-rose-50 to-amber-50 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-rose-100 text-rose-700">
+                  <AlertCircle className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-950">Needs Attention</p>
+                  <p className="text-xs text-slate-600">
+                    Automation problems that may require a CRM action.
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">
+                {
+                  automationIssues.filter((issue) => ["open", "retrying"].includes(issue.status))
+                    .length
+                }{" "}
+                open
+              </span>
+            </div>
+            {automationHealth.warning && (
+              <p className="border-t border-rose-100 bg-rose-50/60 px-5 py-3 text-sm font-medium text-rose-800">
+                {automationHealth.warning}
+              </p>
+            )}
+            <div className="grid gap-2 p-3 md:grid-cols-2">
+              {automationIssues
+                .filter((issue) => ["open", "retrying"].includes(issue.status))
+                .slice(0, 6)
+                .map((issue) => {
+                  const lead = leads.find((item) => item.id === issue.lead_id);
+                  return (
+                    <button
+                      key={issue.id}
+                      onClick={() => {
+                        if (lead) {
+                          setSelectedLeadId(lead.id);
+                          setView("leads");
+                        }
+                      }}
+                      className="rounded-xl border border-slate-200 p-3 text-left hover:border-rose-200 hover:bg-rose-50/40"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <p className="text-sm font-semibold">{issue.summary}</p>
+                        <span className="text-[10px] font-bold uppercase text-rose-600">
+                          {issue.severity}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {lead?.full_name ?? "System"} · {fmtDateTime(issue.last_occurred_at)}
+                      </p>
+                    </button>
+                  );
+                })}
+            </div>
+          </section>
+        )}
         {/* ── DASHBOARD VIEW ─────────────────────────────────────────────── */}
         {view === "dashboard" && (
           <div className="grid gap-6">
@@ -940,6 +1052,8 @@ function CRMDashboard({ crmPassword, onLogout }: { crmPassword: string; onLogout
                     saving={verificationSaving}
                     onResolve={resolveVerification}
                     onEdit={() => setEditLead(selectedLead)}
+                    onRecovery={runRecovery}
+                    recoverySaving={recoverySaving}
                   />
                 ) : (
                   <div className="flex min-h-[680px] items-center justify-center p-8 text-center text-sm text-muted-foreground">
@@ -1386,6 +1500,8 @@ function LeadWorkspace({
   saving,
   onResolve,
   onEdit,
+  onRecovery,
+  recoverySaving,
 }: {
   lead: Lead;
   reviewer: string;
@@ -1398,6 +1514,8 @@ function LeadWorkspace({
     note: string,
   ) => Promise<void>;
   onEdit: () => void;
+  onRecovery: (action: string, leadId: string, extra?: Record<string, unknown>) => Promise<void>;
+  recoverySaving: string | null;
 }) {
   const calls = lead.call_history ?? [];
   const messages = lead.communications ?? [];
@@ -1438,12 +1556,26 @@ function LeadWorkspace({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a
-              href={`tel:${lead.phone}`}
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Start an Adam call to ${lead.full_name} from the Scale to Legacy 615 number?`,
+                  )
+                )
+                  onRecovery("trigger_adam_call", lead.id);
+              }}
+              disabled={recoverySaving === `${lead.id}:trigger_adam_call`}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold shadow-sm hover:bg-slate-50"
             >
               <Phone className="h-3.5 w-3.5" />
-              Call
+              {recoverySaving === `${lead.id}:trigger_adam_call` ? "Queuing…" : "Call with Adam"}
+            </button>
+            <a
+              href={`tel:${lead.phone}`}
+              className="inline-flex items-center rounded-xl px-2 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
+            >
+              Call from my device
             </a>
             <a
               href="https://calendly.com/scaletolegacy/30min"
@@ -1523,6 +1655,105 @@ function LeadWorkspace({
             <p className="mt-1 text-sm leading-relaxed">{lead.notes}</p>
           </div>
         )}
+        <div className="mb-5 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4 shadow-[0_14px_35px_-25px_rgba(79,70,229,0.55)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-indigo-950">Automation & Recovery</p>
+              <p className="text-xs text-indigo-700">
+                Monitor reminders, booking checks, delivery problems, and call recovery.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${(lead.automation_issues ?? []).some((issue) => ["open", "retrying"].includes(issue.status)) ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}
+            >
+              {(lead.automation_issues ?? []).some((issue) =>
+                ["open", "retrying"].includes(issue.status),
+              )
+                ? "Needs Attention"
+                : "Healthy"}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => onRecovery("recheck_calendly", lead.id)}
+              className="rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-50"
+            >
+              Recheck Calendly
+            </button>
+            <button
+              onClick={() => onRecovery("restart_followup_sequence", lead.id)}
+              className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+            >
+              Restart remaining
+            </button>
+            {lead.booking_sequence_status === "paused" ? (
+              <button
+                onClick={() => onRecovery("resume_followup_sequence", lead.id)}
+                className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800"
+              >
+                Resume
+              </button>
+            ) : (
+              <button
+                onClick={() => onRecovery("pause_followup_sequence", lead.id)}
+                className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-800"
+              >
+                Pause
+              </button>
+            )}
+            <button
+              onClick={() => onRecovery("cancel_followup_sequence", lead.id)}
+              className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {(lead.automation_issues ?? [])
+              .filter((issue) => ["open", "retrying"].includes(issue.status))
+              .map((issue) => (
+                <div key={issue.id} className="rounded-xl border border-rose-200 bg-rose-50/70 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-rose-950">{issue.summary}</p>
+                      <p className="mt-0.5 text-xs text-rose-700">{issue.recommended_action}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {issue.sequence_step_id && (
+                        <button
+                          onClick={() =>
+                            onRecovery("retry_followup_step", lead.id, {
+                              issue_id: issue.id,
+                              step_id: issue.sequence_step_id,
+                            })
+                          }
+                          className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm"
+                        >
+                          Retry text now
+                        </button>
+                      )}
+                      <button
+                        onClick={() =>
+                          onRecovery("resolve_automation_issue", lead.id, { issue_id: issue.id })
+                        }
+                        className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 shadow-sm"
+                      >
+                        Mark resolved
+                      </button>
+                    </div>
+                  </div>
+                  {issue.technical_detail && (
+                    <details className="mt-2 text-xs text-slate-600">
+                      <summary className="cursor-pointer font-medium">Technical details</summary>
+                      <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-2 text-[10px] text-slate-100">
+                        {issue.technical_detail}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
         <CommunicationVerification
           lead={lead}
           reviewer={reviewer}
